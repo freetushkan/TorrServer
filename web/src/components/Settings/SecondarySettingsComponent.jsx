@@ -68,6 +68,7 @@ export default function SecondarySettingsComponent({ settings, inputForm }) {
     SslCert,
     SslKey,
     ShowFSActiveTorr,
+    PerUserData,
     EnableProxy,
     ProxyHosts,
   } = settings || {}
@@ -394,6 +395,14 @@ export default function SecondarySettingsComponent({ settings, inputForm }) {
           labelPlacement='start'
         />
         <FormHelperText margin='none'>{t('SettingsDialog.ShowFSActiveTorrHint')}</FormHelperText>
+      </FormGroup>
+      <FormGroup>
+        <FormControlLabel
+          control={<Switch checked={PerUserData} onChange={inputForm} id='PerUserData' color='secondary' />}
+          label={t('SettingsDialog.PerUserData')}
+          labelPlacement='start'
+        />
+        <FormHelperText margin='none'>{t('SettingsDialog.PerUserDataHint')}</FormHelperText>
       </FormGroup>
       {/* Storage Settings Section */}
       <Box mt={4} mb={2}>

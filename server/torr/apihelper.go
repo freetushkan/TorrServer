@@ -88,19 +88,43 @@ func ensureTorrentUsers(torr *Torrent, currentUser string) bool {
 	if torr == nil {
 		return false
 	}
-	if len(torr.Users) > 0 {
-		return false
+
+	available := sets.ListUsers()
+	availableSet := make(map[string]struct{}, len(available))
+	for _, user := range available {
+		availableSet[user] = struct{}{}
 	}
 
-	users := sets.ListUsers()
-	if len(users) == 0 && currentUser != "" {
-		users = []string{currentUser}
-	}
-	if len(users) == 0 {
-		return false
+	filtered := make([]string, 0, len(torr.Users))
+	seen := make(map[string]struct{}, len(torr.Users))
+	for _, user := range torr.Users {
+		if user == "" {
+			continue
+		}
+		if len(availableSet) > 0 {
+			if _, ok := availableSet[user]; !ok {
+				continue
+			}
+		}
+		if _, ok := seen[user]; ok {
+			continue
+		}
+		seen[user] = struct{}{}
+		filtered = append(filtered, user)
 	}
 
-	torr.Users = append([]string(nil), users...)
+	if len(filtered) == 0 {
+		if len(available) > 0 {
+			filtered = append(filtered, available...)
+		} else if currentUser != "" {
+			filtered = append(filtered, currentUser)
+		}
+	}
+
+	if slices.Equal(torr.Users, filtered) {
+		return false
+	}
+	torr.Users = filtered
 	return true
 }
 
