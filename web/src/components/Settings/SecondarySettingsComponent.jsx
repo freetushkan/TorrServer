@@ -69,6 +69,7 @@ export default function SecondarySettingsComponent({ settings, inputForm }) {
     SslKey,
     ShowFSActiveTorr,
     PerUserData,
+    PerUserDataForced,
     EnableProxy,
     ProxyHosts,
   } = settings || {}
@@ -396,14 +397,6 @@ export default function SecondarySettingsComponent({ settings, inputForm }) {
         />
         <FormHelperText margin='none'>{t('SettingsDialog.ShowFSActiveTorrHint')}</FormHelperText>
       </FormGroup>
-      <FormGroup>
-        <FormControlLabel
-          control={<Switch checked={PerUserData} onChange={inputForm} id='PerUserData' color='secondary' />}
-          label={t('SettingsDialog.PerUserData')}
-          labelPlacement='start'
-        />
-        <FormHelperText margin='none'>{t('SettingsDialog.PerUserDataHint')}</FormHelperText>
-      </FormGroup>
       {/* Storage Settings Section */}
       <Box mt={4} mb={2}>
         <SettingSectionLabel>{t('SettingsDialog.StorageConfiguration')}</SettingSectionLabel>
@@ -502,6 +495,24 @@ export default function SecondarySettingsComponent({ settings, inputForm }) {
         variant='outlined'
         fullWidth
       />
+      <FormGroup style={{ marginTop: '20px' }}>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={Boolean(PerUserData)}
+              onChange={inputForm}
+              id='PerUserData'
+              color='secondary'
+              disabled={Boolean(PerUserDataForced)}
+            />
+          }
+          label={t('SettingsDialog.PerUserData')}
+          labelPlacement='start'
+        />
+        <FormHelperText margin='none'>
+          {PerUserDataForced ? t('SettingsDialog.PerUserDataForcedHint') : t('SettingsDialog.PerUserDataHint')}
+        </FormHelperText>
+      </FormGroup>
     </SecondarySettingsContent>
   )
 }
