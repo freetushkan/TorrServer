@@ -510,7 +510,8 @@ export default function SecondarySettingsComponent({ settings, inputForm }) {
           labelPlacement='start'
         />
         <FormHelperText margin='none'>
-          {PerUserDataForced ? t('SettingsDialog.PerUserDataForcedHint') : t('SettingsDialog.PerUserDataHint')}
+          {t('SettingsDialog.PerUserDataHint')}
+          {PerUserDataForced ? ` ${t('SettingsDialog.PerUserDataForcedHint')}` : ''}
         </FormHelperText>
       </FormGroup>
     </SecondarySettingsContent>

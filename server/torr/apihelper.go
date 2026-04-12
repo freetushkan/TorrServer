@@ -89,6 +89,7 @@ func ensureTorrentUsers(torr *Torrent, currentUser string) bool {
 		return false
 	}
 
+	hadNoUsers := len(torr.Users) == 0
 	available := sets.ListUsers()
 	availableSet := make(map[string]struct{}, len(available))
 	for _, user := range available {
@@ -125,6 +126,9 @@ func ensureTorrentUsers(torr *Torrent, currentUser string) bool {
 		return false
 	}
 	torr.Users = filtered
+	if hadNoUsers && len(filtered) > 0 && torr.TorrentSpec != nil {
+		sets.CopyViewedToUsers(torr.TorrentSpec.InfoHash.HexString(), filtered)
+	}
 	return true
 }
 
