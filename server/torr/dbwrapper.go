@@ -36,6 +36,7 @@ func AddTorrentDB(torr *Torrent) {
 	if torr.Poster != "" && utils.CheckImgUrl(torr.Poster) {
 		t.Poster = torr.Poster
 	}
+	t.Users = append(t.Users, torr.Users...)
 	t.Size = torr.Size
 	if t.Size == 0 && torr.Torrent != nil {
 		t.Size = torr.Torrent.Length()
@@ -58,6 +59,7 @@ func GetTorrentDB(hash metainfo.Hash) *Torrent {
 			torr.Timestamp = db.Timestamp
 			torr.Size = db.Size
 			torr.Data = db.Data
+			torr.Users = append(torr.Users, db.Users...)
 			torr.Stat = state.TorrentInDB
 			return torr
 		}
@@ -81,6 +83,7 @@ func ListTorrentsDB() map[metainfo.Hash]*Torrent {
 		torr.Timestamp = db.Timestamp
 		torr.Size = db.Size
 		torr.Data = db.Data
+		torr.Users = append(torr.Users, db.Users...)
 		torr.Stat = state.TorrentInDB
 		ret[torr.TorrentSpec.InfoHash] = torr
 	}
