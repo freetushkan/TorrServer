@@ -32,6 +32,9 @@ func parseViewedKey(key string) (user, hash string) {
 }
 
 func SetViewed(vv *Viewed) {
+	if vv == nil || vv.Hash == "" {
+		return
+	}
 	var indexes map[int]struct{}
 	var err error
 
@@ -60,8 +63,14 @@ func SetViewed(vv *Viewed) {
 }
 
 func RemViewed(vv *Viewed) {
+	if vv == nil || vv.Hash == "" {
+		return
+	}
 	key := viewedKey(vv.Hash, vv.User)
 	buf := tdb.Get("Viewed", key)
+	if len(buf) == 0 {
+		return
+	}
 	var indeces map[int]struct{}
 	err := json.Unmarshal(buf, &indeces)
 	if err == nil {

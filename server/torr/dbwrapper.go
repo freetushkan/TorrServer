@@ -71,6 +71,18 @@ func RemTorrentDB(hash metainfo.Hash) {
 	settings.RemTorrent(hash)
 }
 
+func SetTorrentUsersDB(hash metainfo.Hash, users []string) {
+	list := settings.ListTorrent()
+	for _, db := range list {
+		if db.InfoHash != hash {
+			continue
+		}
+		db.Users = append([]string(nil), users...)
+		settings.AddTorrent(db)
+		return
+	}
+}
+
 func ListTorrentsDB() map[metainfo.Hash]*Torrent {
 	ret := make(map[metainfo.Hash]*Torrent)
 	list := settings.ListTorrent()

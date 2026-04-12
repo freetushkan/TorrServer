@@ -288,7 +288,11 @@ func RemTorrentForUser(hashHex, currentUser string) {
 		return
 	}
 
-	torr := GetTorrent(hashHex)
+	hash := metainfo.NewHashFromHex(hashHex)
+	torr := bts.GetTorrent(hash)
+	if torr == nil {
+		torr = GetTorrentDB(hash)
+	}
 	if torr == nil {
 		return
 	}
@@ -304,7 +308,7 @@ func RemTorrentForUser(hashHex, currentUser string) {
 	}
 
 	if changed {
-		SaveTorrentToDB(torr)
+		SetTorrentUsersDB(hash, torr.Users)
 	}
 }
 
@@ -344,22 +348,14 @@ func ListTorrentForUser(currentUser string) []*Torrent {
 	}
 
 	var ret []*Torrent
-	var toPersist []*Torrent
 	for _, tor := range list {
 		changed := ensureTorrentUsers(tor, currentUser)
 		if changed {
-			toPersist = append(toPersist, tor)
+			SetTorrentUsersDB(tor.Hash(), tor.Users)
 		}
 		if slices.Contains(tor.Users, currentUser) {
 			ret = append(ret, tor)
 		}
-	}
-	if len(toPersist) > 0 {
-		go func(torrents []*Torrent) {
-			for _, tor := range torrents {
-				SaveTorrentToDB(tor)
-			}
-		}(toPersist)
 	}
 
 	return ret
