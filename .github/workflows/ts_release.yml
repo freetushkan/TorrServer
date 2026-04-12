@@ -20,10 +20,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ matrix.go_version }}
           cache: true
@@ -89,7 +89,7 @@ jobs:
           CC=$NDK_TOOLCHAIN/bin/x86_64-linux-android21-clang CGO_ENABLED=1 GOOS=android GOARCH=amd64 go build -ldflags="$LDFLAGS" -tags=nosqlite -trimpath -o "${{ github.workspace }}/dist/TorrServer-android-amd64" ./cmd
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: binaries-${{ matrix.group }}
           path: ${{ github.workspace }}/dist/*
@@ -101,7 +101,7 @@ jobs:
       contents: write
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: ./all-dist
           merge-multiple: true

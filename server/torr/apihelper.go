@@ -344,14 +344,22 @@ func ListTorrentForUser(currentUser string) []*Torrent {
 	}
 
 	var ret []*Torrent
+	var toPersist []*Torrent
 	for _, tor := range list {
 		changed := ensureTorrentUsers(tor, currentUser)
 		if changed {
-			SaveTorrentToDB(tor)
+			toPersist = append(toPersist, tor)
 		}
 		if slices.Contains(tor.Users, currentUser) {
 			ret = append(ret, tor)
 		}
+	}
+	if len(toPersist) > 0 {
+		go func(torrents []*Torrent) {
+			for _, tor := range torrents {
+				SaveTorrentToDB(tor)
+			}
+		}(toPersist)
 	}
 
 	return ret
