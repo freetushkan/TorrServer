@@ -84,7 +84,10 @@ func AddTorrent(spec *torrent.TorrentSpec, title, poster string, data string, ca
 }
 
 func ensureTorrentUsers(torr *Torrent) bool {
-	if !sets.PerUserData || torr == nil {
+	if !sets.PerUserData {
+		return false
+	}
+	if torr == nil {
 		return false
 	}
 
@@ -314,7 +317,10 @@ func ListTorrent() []*Torrent {
 
 func ListTorrentForUser(user string) []*Torrent {
 	list := ListTorrent()
-	if !sets.PerUserData || user == "" {
+	if !sets.PerUserData {
+		return list
+	}
+	if user == "" {
 		return list
 	}
 
