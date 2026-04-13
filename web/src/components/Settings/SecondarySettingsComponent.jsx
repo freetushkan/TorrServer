@@ -497,7 +497,7 @@ export default function SecondarySettingsComponent({ settings, inputForm }) {
         fullWidth
       />
       <SettingSectionLabel style={{ marginTop: '20px' }}>{t('SettingsDialog.Users')}</SettingSectionLabel>
-      <FormGroup style={{ marginTop: '20px' }}>
+      <FormGroup>
         <FormControlLabel
           control={
             <Switch
@@ -512,8 +512,7 @@ export default function SecondarySettingsComponent({ settings, inputForm }) {
           labelPlacement='start'
         />
         <FormHelperText margin='none'>
-          {PerUserDataForced ? `${t('SettingsDialog.PerUserDataForcedHint')} ` : ''}
-          <br />
+          {PerUserDataForced ? `${t('SettingsDialog.PerUserDataForcedHint')} <br />` : ''}
           {t('SettingsDialog.PerUserDataHint')}
           <br />
           {t('SettingsDialog.CurrentUser')}: {CurrentUser}
