@@ -49,6 +49,7 @@ func settings(c *gin.Context) {
 		}
 		resp["PerUserData"] = sets.PerUserData
 		resp["PerUserDataForced"] = sets.Args != nil && sets.Args.PerUserData
+		resp["CurrentUser"] = currentUser(c)
 		c.JSON(200, resp)
 		return
 	} else if req.Action == "set" {
