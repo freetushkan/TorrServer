@@ -2,7 +2,6 @@ package settings
 
 import (
 	"encoding/json"
-	"strings"
 
 	"server/log"
 )
@@ -51,30 +50,6 @@ func readViewedIndexes(key string) map[int]struct{} {
 		return nil
 	}
 	return indexes
-}
-
-// CopyViewedToUsers copies legacy viewed entries (hash key) to per-user keys.
-func CopyViewedToUsers(hash string, users []string) {
-	if !PerUserData || hash == "" || len(users) == 0 {
-		return
-	}
-	buf := tdb.Get("Viewed", hash)
-	if len(buf) == 0 {
-		return
-	}
-	var indexes map[int]struct{}
-	if err := json.Unmarshal(buf, &indexes); err != nil {
-		return
-	}
-	for _, user := range users {
-		if user == "" {
-			continue
-		}
-		key := viewedKey(hash, user)
-		if len(tdb.Get("Viewed", key)) == 0 {
-			tdb.Set("Viewed", key, buf)
-		}
-	}
 }
 
 func SetViewed(vv *Viewed) {
@@ -142,25 +117,6 @@ func ListViewed(hash string) []*Viewed {
 func ListViewedForUser(hash, user string) []*Viewed {
 	var err error
 	if hash != "" {
-		if !PerUserData {
-			merged := make(map[int]struct{})
-			for i := range readViewedIndexes(hash) {
-				merged[i] = struct{}{}
-			}
-			for _, key := range tdb.List("Viewed") {
-				if strings.HasSuffix(key, ":"+hash) {
-					for i := range readViewedIndexes(key) {
-						merged[i] = struct{}{}
-					}
-				}
-			}
-			ret := make([]*Viewed, 0, len(merged))
-			for i := range merged {
-				ret = append(ret, &Viewed{Hash: hash, FileIndex: i})
-			}
-			return ret
-		}
-
 		key := viewedKey(hash, user)
 		buf := tdb.Get("Viewed", key)
 		if len(buf) == 0 {
@@ -176,31 +132,6 @@ func ListViewedForUser(hash, user string) []*Viewed {
 			return ret
 		}
 	} else {
-		if !PerUserData {
-			grouped := make(map[string]map[int]struct{})
-			keys := tdb.List("Viewed")
-			for _, key := range keys {
-				_, keyHash := splitViewedKey(key)
-				indexes := readViewedIndexes(key)
-				if indexes == nil {
-					continue
-				}
-				if _, ok := grouped[keyHash]; !ok {
-					grouped[keyHash] = make(map[int]struct{})
-				}
-				for i := range indexes {
-					grouped[keyHash][i] = struct{}{}
-				}
-			}
-			var ret []*Viewed
-			for keyHash, indexes := range grouped {
-				for i := range indexes {
-					ret = append(ret, &Viewed{Hash: keyHash, FileIndex: i})
-				}
-			}
-			return ret
-		}
-
 		var ret []*Viewed
 		keys := tdb.List("Viewed")
 		for _, key := range keys {

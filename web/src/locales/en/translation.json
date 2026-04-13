@@ -182,7 +182,7 @@
     "ShowFSActiveTorrHint": "When enabled, only active torrents are shown in the FS (FUSE, WebDAV, etc.). If disabled, all torrents will be displayed, which may cause simultaneous connections to all torrents when opening a category and slowdown.",
     "PerUserData": "Per-user data separation",
     "PerUserDataHint": "When enabled, torrents and viewed history are isolated by authenticated account.",
-    "PerUserDataForcedHint": "Enabled by launch flag --per-user-data. Changing this toggle is disabled.",
+    "PerUserDataForcedHint": "Forced by flag '--per-user-data'. Torrents and viewed history are isolated by authenticated account.",
     "SslCert": "SSL Certificate",
     "SslCertHint": "Path to SSL Certificate",
     "SslKey": "SSL Key",

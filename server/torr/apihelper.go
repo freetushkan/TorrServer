@@ -81,7 +81,7 @@ func AddTorrent(spec *torrent.TorrentSpec, title, poster string, data string, ca
 	return torr, nil
 }
 
-func ensureTorrentUsers(torr *Torrent, currentUser string) bool {
+func ensureTorrentUsers(torr *Torrent, user string) bool {
 	if !sets.PerUserData {
 		return false
 	}
@@ -89,47 +89,36 @@ func ensureTorrentUsers(torr *Torrent, currentUser string) bool {
 		return false
 	}
 
-	hadNoUsers := len(torr.Users) == 0
 	available := sets.ListUsers()
 	availableSet := make(map[string]struct{}, len(available))
-	for _, user := range available {
-		availableSet[user] = struct{}{}
+	for _, usr := range available {
+		availableSet[usr] = struct{}{}
 	}
 
 	filtered := make([]string, 0, len(torr.Users))
-	seen := make(map[string]struct{}, len(torr.Users))
-	for _, user := range torr.Users {
-		if user == "" {
-			continue
-		}
+	for _, usr := range torr.Users {
 		if len(availableSet) > 0 {
-			if _, ok := availableSet[user]; !ok {
+			if _, ok := availableSet[usr]; !ok {
 				continue
 			}
 		}
-		if _, ok := seen[user]; ok {
-			continue
-		}
-		seen[user] = struct{}{}
-		filtered = append(filtered, user)
+		filtered = append(filtered, usr)
 	}
 
 	if len(filtered) == 0 {
 		if len(available) > 0 {
 			filtered = append(filtered, available...)
-		} else if currentUser != "" {
-			filtered = append(filtered, currentUser)
+		} else if user != "" {
+			filtered = append(filtered, user)
 		}
 	}
 
-	if slices.Equal(torr.Users, filtered) {
+	if len(torr.Users) != len(filtered) {
+		torr.Users = filtered
+		return true
+	} else {
 		return false
 	}
-	torr.Users = filtered
-	if hadNoUsers && len(filtered) > 0 && torr.TorrentSpec != nil {
-		sets.CopyViewedToUsers(torr.TorrentSpec.InfoHash.HexString(), filtered)
-	}
-	return true
 }
 
 func addUserToTorrent(torr *Torrent, user string) bool {
@@ -167,42 +156,12 @@ func removeUserFromTorrent(torr *Torrent, user string) bool {
 	return true
 }
 
-func AddTorrentForUser(spec *torrent.TorrentSpec, title, poster, data, category, currentUser string) (*Torrent, error) {
-	if !sets.PerUserData {
-		return AddTorrent(spec, title, poster, data, category)
-	}
-	existed := bts.GetTorrent(spec.InfoHash) != nil || GetTorrentDB(spec.InfoHash) != nil
-
+func AddTorrentForUser(spec *torrent.TorrentSpec, title, poster, data, category, user string) (*Torrent, error) {
 	torr, err := AddTorrent(spec, title, poster, data, category)
 	if err != nil {
 		return nil, err
 	}
-
-	changed := ensureTorrentUsers(torr, currentUser)
-	if addUserToTorrent(torr, currentUser) {
-		changed = true
-	}
-
-	if existed {
-		if title != "" {
-			torr.Title = title
-		}
-		if poster != "" {
-			torr.Poster = poster
-		}
-		if category != "" {
-			torr.Category = category
-		}
-		if data != "" {
-			torr.Data = data
-		}
-		changed = true
-	}
-
-	if changed {
-		SaveTorrentToDB(torr)
-	}
-
+	addUserToTorrent(torr, user)
 	return torr, nil
 }
 
@@ -306,12 +265,8 @@ func RemTorrent(hashHex string) {
 	RemTorrentDB(hash)
 }
 
-func RemTorrentForUser(hashHex, currentUser string) {
-	if !sets.PerUserData {
-		RemTorrent(hashHex)
-		return
-	}
-	if currentUser == "" {
+func RemTorrentForUser(hashHex, user string) {
+	if !sets.PerUserData || user == "" {
 		RemTorrent(hashHex)
 		return
 	}
@@ -325,19 +280,15 @@ func RemTorrentForUser(hashHex, currentUser string) {
 		return
 	}
 
-	changed := ensureTorrentUsers(torr, currentUser)
-	if removeUserFromTorrent(torr, currentUser) {
-		changed = true
-	}
-
-	if len(torr.Users) == 0 {
+	ensureTorrentUsers(torr, user)
+	if len(torr.Users) > 1 {
+		removeUserFromTorrent(torr, user)
+	} else {
 		RemTorrent(hashHex)
 		return
 	}
 
-	if changed {
-		SetTorrentUsersDB(hash, torr.Users)
-	}
+	SetTorrentUsersDB(hash, torr.Users)
 }
 
 func ListTorrent() []*Torrent {
@@ -366,22 +317,22 @@ func ListTorrent() []*Torrent {
 	return ret
 }
 
-func ListTorrentForUser(currentUser string) []*Torrent {
+func ListTorrentForUser(user string) []*Torrent {
 	if !sets.PerUserData {
 		return ListTorrent()
 	}
 	list := ListTorrent()
-	if currentUser == "" {
+	if user == "" {
 		return list
 	}
 
 	var ret []*Torrent
 	for _, tor := range list {
-		changed := ensureTorrentUsers(tor, currentUser)
+		changed := ensureTorrentUsers(tor, user)
 		if changed {
 			SetTorrentUsersDB(tor.Hash(), tor.Users)
 		}
-		if slices.Contains(tor.Users, currentUser) {
+		if slices.Contains(tor.Users, user) {
 			ret = append(ret, tor)
 		}
 	}
