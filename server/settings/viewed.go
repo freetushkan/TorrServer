@@ -31,27 +31,6 @@ func parseViewedKey(key string) (user, hash string) {
 	return "", key
 }
 
-func splitViewedKey(key string) (user, hash string) {
-	for i := 0; i < len(key); i++ {
-		if key[i] == ':' {
-			return key[:i], key[i+1:]
-		}
-	}
-	return "", key
-}
-
-func readViewedIndexes(key string) map[int]struct{} {
-	buf := tdb.Get("Viewed", key)
-	if len(buf) == 0 {
-		return nil
-	}
-	var indexes map[int]struct{}
-	if err := json.Unmarshal(buf, &indexes); err != nil {
-		return nil
-	}
-	return indexes
-}
-
 func SetViewed(vv *Viewed) {
 	if vv == nil || vv.Hash == "" {
 		return

@@ -78,6 +78,8 @@ func AddTorrent(spec *torrent.TorrentSpec, title, poster string, data string, ca
 		}
 	}
 
+	torr.Users = append(torr.Users, torDB.Users...)
+
 	return torr, nil
 }
 
