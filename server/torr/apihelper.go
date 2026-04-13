@@ -83,11 +83,8 @@ func AddTorrent(spec *torrent.TorrentSpec, title, poster string, data string, ca
 	return torr, nil
 }
 
-func ensureTorrentUsers(torr *Torrent, user string) bool {
-	if !sets.PerUserData {
-		return false
-	}
-	if torr == nil {
+func ensureTorrentUsers(torr *Torrent) bool {
+	if !sets.PerUserData || torr == nil {
 		return false
 	}
 
@@ -107,20 +104,15 @@ func ensureTorrentUsers(torr *Torrent, user string) bool {
 		filtered = append(filtered, usr)
 	}
 
-	if len(filtered) == 0 {
-		if len(available) > 0 {
-			filtered = append(filtered, available...)
-		} else if user != "" {
-			filtered = append(filtered, user)
-		}
+	if len(filtered) == 0 && len(available) > 0 {
+		filtered = append(filtered, available...)
 	}
 
-	if len(torr.Users) != len(filtered) {
-		torr.Users = filtered
-		return true
-	} else {
+	if slices.Equal(torr.Users, filtered) {
 		return false
 	}
+	torr.Users = filtered
+	return true
 }
 
 func addUserToTorrent(torr *Torrent, user string) bool {
@@ -164,6 +156,7 @@ func AddTorrentForUser(spec *torrent.TorrentSpec, title, poster, data, category,
 		return nil, err
 	}
 	addUserToTorrent(torr, user)
+	SetTorrentUsersDB(torr.Hash(), torr.Users)
 	return torr, nil
 }
 
@@ -282,7 +275,7 @@ func RemTorrentForUser(hashHex, user string) {
 		return
 	}
 
-	ensureTorrentUsers(torr, user)
+	ensureTorrentUsers(torr)
 	if len(torr.Users) > 1 {
 		removeUserFromTorrent(torr, user)
 	} else {
@@ -320,20 +313,13 @@ func ListTorrent() []*Torrent {
 }
 
 func ListTorrentForUser(user string) []*Torrent {
-	if !sets.PerUserData {
-		return ListTorrent()
-	}
 	list := ListTorrent()
-	if user == "" {
+	if !sets.PerUserData || user == "" {
 		return list
 	}
 
 	var ret []*Torrent
 	for _, tor := range list {
-		changed := ensureTorrentUsers(tor, user)
-		if changed {
-			SetTorrentUsersDB(tor.Hash(), tor.Users)
-		}
 		if slices.Contains(tor.Users, user) {
 			ret = append(ret, tor)
 		}

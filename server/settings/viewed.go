@@ -31,6 +31,30 @@ func parseViewedKey(key string) (user, hash string) {
 	return "", key
 }
 
+// CopyViewedToUsers copies legacy viewed entries (hash key) to per-user keys.
+func CopyViewedToUsers(hash string, users []string) {
+	if !PerUserData || hash == "" || len(users) == 0 {
+		return
+	}
+	buf := tdb.Get("Viewed", hash)
+	if len(buf) == 0 {
+		return
+	}
+	var indexes map[int]struct{}
+	if err := json.Unmarshal(buf, &indexes); err != nil {
+		return
+	}
+	for _, user := range users {
+		if user == "" {
+			continue
+		}
+		key := viewedKey(hash, user)
+		if len(tdb.Get("Viewed", key)) == 0 {
+			tdb.Set("Viewed", key, buf)
+		}
+	}
+}
+
 func SetViewed(vv *Viewed) {
 	if vv == nil || vv.Hash == "" {
 		return
