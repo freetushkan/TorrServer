@@ -35,6 +35,7 @@ func LoadTorrent(tor *Torrent) *Torrent {
 	tr.Title = tor.Title
 	tr.Poster = tor.Poster
 	tr.Data = tor.Data
+	tr.Users = tor.Users
 	return tr
 }
 
@@ -195,6 +196,7 @@ func GetTorrent(hashHex string) *Torrent {
 				tr.Size = tor.Size
 				tr.Timestamp = tor.Timestamp
 				tr.Category = tor.Category
+				tr.Users = tor.Users
 				tr.GotInfo()
 			}
 		}()
