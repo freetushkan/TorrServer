@@ -191,14 +191,7 @@ func remTorrent(req torrReqJS, c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, errors.New("hash is empty"))
 		return
 	}
-	user := currentUser(c)
-	if req.Hash == "/" || req.Hash == "*" {
-		for _, t := range torr.ListTorrentForUser(user) {
-			torr.RemTorrentForUser(t.TorrentSpec.InfoHash.HexString(), user)
-		}
-	} else {
-		torr.RemTorrentForUser(req.Hash, user)
-	}
+	torr.RemTorrentForUser(req.Hash, currentUser(c))
 	// TODO: remove
 	if set.BTsets.EnableDLNA {
 		dlna.Stop()

@@ -45,7 +45,7 @@ func allPlayList(c *gin.Context) {
 			list += " tvg-logo=\"" + tr.Poster + "\""
 		}
 		list += " type=\"playlist\"," + tr.Title + "\n"
-		list += host + "/stream/" + url.PathEscape(tr.Title) + ".m3u?link=" + tr.TorrentSpec.InfoHash.HexString() + "&m3u&fn=file.m3u\n"
+		list += host + "/stream/" + url.PathEscape(tr.Title) + ".m3u?link=" + tr.TorrentSpec.InfoHash.HexString() + "&user=" + currentUser(c) + "&m3u&fn=file.m3u\n"
 		hash += tr.Hash().HexString()
 	}
 
@@ -136,12 +136,12 @@ func getM3uList(tor *state.TorrentStatus, host string, fromLast bool, user strin
 					m3u += "#EXTVLCOPT:input-slave="         // include VLC option for external media
 					for _, namesake := range fileNamesakes { // include play-links to external media, with # splitter
 						sname := filepath.Base(namesake.Path)
-						m3u += host + "/stream/" + url.PathEscape(sname) + "?link=" + tor.Hash + "&index=" + fmt.Sprint(namesake.Id) + "&play#"
+						m3u += host + "/stream/" + url.PathEscape(sname) + "?link=" + tor.Hash + "&user=" + user + "&index=" + fmt.Sprint(namesake.Id) + "&play#"
 					}
 					m3u += "\n"
 				}
 				name := filepath.Base(f.Path)
-				m3u += host + "/stream/" + url.PathEscape(name) + "?link=" + tor.Hash + "&index=" + fmt.Sprint(f.Id) + "&play\n"
+				m3u += host + "/stream/" + url.PathEscape(name) + "?link=" + tor.Hash + "&user=" + user + "&index=" + fmt.Sprint(f.Id) + "&play\n"
 			}
 		}
 	}

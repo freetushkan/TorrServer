@@ -29,6 +29,10 @@ func play(c *gin.Context) {
 	hash := c.Param("hash")
 	indexStr := c.Param("id")
 	notAuth := c.GetBool("auth_required") && c.GetString(gin.AuthUserKey) == ""
+	user := currentUser(c)
+	if user == "" {
+		user = c.Query("user")
+	}
 
 	if hash == "" || indexStr == "" {
 		c.AbortWithError(http.StatusNotFound, errors.New("no infohash or file index in link"))
@@ -54,7 +58,7 @@ func play(c *gin.Context) {
 	}
 
 	if tor.Stat == state.TorrentInDB {
-		tor, err = torr.AddTorrentForUser(spec, tor.Title, tor.Poster, tor.Data, tor.Category, currentUser(c))
+		tor, err = torr.AddTorrentForUser(spec, tor.Title, tor.Poster, tor.Data, tor.Category, user)
 		if err != nil {
 			c.AbortWithError(http.StatusInternalServerError, err)
 			return
@@ -81,5 +85,6 @@ func play(c *gin.Context) {
 		return
 	}
 
-	tor.Stream(index, c.Request, c.Writer)
+	//streamforuser?
+	tor.Stream(index, c.Request, c.Writer, user)
 }

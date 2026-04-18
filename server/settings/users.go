@@ -11,12 +11,12 @@ import (
 func ListUsers() []string {
 	buf, err := os.ReadFile(filepath.Join(Path, "accs.db"))
 	if err != nil {
-		return nil
+		return []string{}
 	}
 
 	accs := make(map[string]string)
 	if err := json.Unmarshal(buf, &accs); err != nil {
-		return nil
+		return []string{}
 	}
 
 	users := make([]string, 0, len(accs))
