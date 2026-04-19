@@ -13,6 +13,7 @@ import (
 
 	"github.com/anacrolix/missinggo/v2/httptoo"
 
+	"server/log"
 	sets "server/settings"
 	"server/torr"
 	"server/torr/state"
@@ -88,6 +89,8 @@ func playList(c *gin.Context) {
 	}
 
 	host := utils.GetScheme(c) + "://" + utils.GetHost(c)
+	log.TLogln("playlist->getM3uList, queryUser: ", c.Query("user"))
+	log.TLogln("playlist->getM3uList, currentUser: ", currentUser(c))
 	list := getM3uList(tor.Status(), host, fromlast, currentUser(c))
 	list = "#EXTM3U\n" + list
 	name := strings.ReplaceAll(c.Param("fname"), `/`, "") // strip starting / from param

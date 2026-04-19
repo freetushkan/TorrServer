@@ -188,6 +188,8 @@ func stream(c *gin.Context) {
 		} else if !strings.HasSuffix(strings.ToLower(name), ".m3u") && !strings.HasSuffix(strings.ToLower(name), ".m3u8") {
 			name += ".m3u"
 		}
+		log.TLogln("stream->getM3uList, queryUser: ", c.Query("user"))
+		log.TLogln("stream->getM3uList, currentUser: ", currentUser(c))
 		m3ulist := "#EXTM3U\n" + getM3uList(tor.Status(), utils2.GetScheme(c)+"://"+utils2.GetHost(c), fromlast, currentUser(c))
 		sendM3U(c, name, tor.Hash().HexString(), m3ulist)
 		return
@@ -310,6 +312,9 @@ func streamNoAuth(c *gin.Context) {
 		} else if !strings.HasSuffix(strings.ToLower(name), ".m3u") && !strings.HasSuffix(strings.ToLower(name), ".m3u8") {
 			name += ".m3u"
 		}
+		log.TLogln("streamNoAuth->getM3uList, queryUser: ", c.Query("user"))
+		log.TLogln("streamNoAuth->getM3uList, currentUser: ", currentUser(c))
+		log.TLogln("streamNoAuth->getM3uList, user: ", user)
 		m3ulist := "#EXTM3U\n" + getM3uList(tor.Status(), utils2.GetScheme(c)+"://"+utils2.GetHost(c), fromlast, user)
 		sendM3U(c, name, tor.Hash().HexString(), m3ulist)
 		return
