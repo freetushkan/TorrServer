@@ -135,6 +135,8 @@ func stream(c *gin.Context) {
 		category = tor.Category
 	}
 	if tor == nil || tor.Stat == state.TorrentInDB {
+		log.TLogln("stream->AddTorrentForUser, queryUser: ", c.Query("user"))
+		log.TLogln("stream->AddTorrentForUser, currentUser: ", currentUser(c))
 		tor, err = torr.AddTorrentForUser(spec, title, poster, data, category, currentUser(c))
 		if err != nil {
 			c.AbortWithError(http.StatusInternalServerError, err)
@@ -196,7 +198,8 @@ func stream(c *gin.Context) {
 	} else
 	// return play if query
 	if play {
-		//streamforuser?
+		log.TLogln("stream->Stream, currentUser: ", currentUser(c))
+		log.TLogln("stream->Stream, queryUser: ", c.Query("user"))
 		tor.Stream(index, c.Request, c.Writer, currentUser(c))
 		return
 	}
@@ -274,6 +277,8 @@ func streamNoAuth(c *gin.Context) {
 	data := tor.Data
 
 	if tor.Stat == state.TorrentInDB {
+		log.TLogln("streamNoAuth->AddTorrentForUser, queryUser: ", c.Query("user"))
+		log.TLogln("streamNoAuth->AddTorrentForUser, currentUser: ", currentUser(c))
 		tor, err = torr.AddTorrentForUser(spec, title, poster, data, category, user)
 		if err != nil {
 			c.AbortWithError(http.StatusInternalServerError, err)
@@ -321,6 +326,8 @@ func streamNoAuth(c *gin.Context) {
 	} else
 	// return play if query
 	if play {
+		log.TLogln("streamNoAuth->Stream, currentUser: ", currentUser(c))
+		log.TLogln("streamNoAuth->Stream, queryUser: ", c.Query("user"))
 		tor.Stream(index, c.Request, c.Writer, user)
 		return
 	}
