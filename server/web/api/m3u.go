@@ -73,6 +73,19 @@ func playList(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, errors.New("hash is empty"))
 		return
 	}
+	user := currentUser(c)
+	if sets.PerUserData {
+		log.TLogln("playList() user: ", user)
+		log.TLogln("playList() query_user: ", c.Query("user"))
+		log.TLogln("playList() viewed_access: ", sets.GetLastUser(hash, "viewed_access"))
+		log.TLogln("playList() preload_access: ", sets.GetLastUser(hash, "preload_access"))
+		if user == "" {
+			user = c.Query("user")
+			if user == "" {
+				user = sets.GetLastUser(hash, "viewed_access")
+			}
+		}
+	}
 
 	tor := torr.GetTorrent(hash)
 	if tor == nil {
@@ -89,9 +102,7 @@ func playList(c *gin.Context) {
 	}
 
 	host := utils.GetScheme(c) + "://" + utils.GetHost(c)
-	log.TLogln("playlist->getM3uList, queryUser: ", c.Query("user"))
-	log.TLogln("playlist->getM3uList, currentUser: ", currentUser(c))
-	list := getM3uList(tor.Status(), host, fromlast, currentUser(c))
+	list := getM3uList(tor.Status(), host, fromlast, user)
 	list = "#EXTM3U\n" + list
 	name := strings.ReplaceAll(c.Param("fname"), `/`, "") // strip starting / from param
 	if name == "" {

@@ -72,6 +72,10 @@ func remViewed(req viewedReqJS, c *gin.Context) {
 }
 
 func listViewed(req viewedReqJS, c *gin.Context) {
-	list := sets.ListViewedForUser(req.Hash, currentUser(c))
+	user := currentUser(c)
+	list := sets.ListViewedForUser(req.Hash, user)
+	if sets.PerUserData && user != "" {
+		sets.SetLastUser(req.Hash, user, "viewed_access")
+	}
 	c.JSON(200, list)
 }

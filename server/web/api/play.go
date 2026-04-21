@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"server/log"
+	sets "server/settings"
 	"server/torr"
 	"server/torr/state"
 	"server/web/api/utils"
@@ -31,8 +32,14 @@ func play(c *gin.Context) {
 	indexStr := c.Param("id")
 	notAuth := c.GetBool("auth_required") && c.GetString(gin.AuthUserKey) == ""
 	user := currentUser(c)
-	if user == "" {
-		user = c.Query("user")
+	if sets.PerUserData {
+		log.TLogln("play() user: ", user)
+		log.TLogln("play() query_user: ", c.Query("user"))
+		log.TLogln("play() viewed_access: ", sets.GetLastUser(hash, "viewed_access"))
+		log.TLogln("play() preload_access: ", sets.GetLastUser(hash, "preload_access"))
+		if user == "" {
+			user = c.Query("user")
+		}
 	}
 
 	if hash == "" || indexStr == "" {
@@ -59,8 +66,6 @@ func play(c *gin.Context) {
 	}
 
 	if tor.Stat == state.TorrentInDB {
-		log.TLogln("play->AddTorrentForUser, queryUser: ", c.Query("user"))
-		log.TLogln("play->AddTorrentForUser, currentUser: ", currentUser(c))
 		tor, err = torr.AddTorrentForUser(spec, tor.Title, tor.Poster, tor.Data, tor.Category, user)
 		if err != nil {
 			c.AbortWithError(http.StatusInternalServerError, err)
@@ -88,7 +93,5 @@ func play(c *gin.Context) {
 		return
 	}
 
-	log.TLogln("play->Stream, currentUser: ", currentUser(c))
-	log.TLogln("play->Stream, queryUser: ", c.Query("user"))
 	tor.Stream(index, c.Request, c.Writer, user)
 }

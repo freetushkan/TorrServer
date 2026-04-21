@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	sets "server/settings"
 	"server/torr"
 	"server/torr/state"
 	utils2 "server/utils"
@@ -65,6 +66,7 @@ func stream(c *gin.Context) {
 	title := c.Query("title")
 	poster := c.Query("poster")
 	category := c.Query("category")
+	user := currentUser(c)
 
 	data := ""
 
@@ -135,9 +137,7 @@ func stream(c *gin.Context) {
 		category = tor.Category
 	}
 	if tor == nil || tor.Stat == state.TorrentInDB {
-		log.TLogln("stream->AddTorrentForUser, queryUser: ", c.Query("user"))
-		log.TLogln("stream->AddTorrentForUser, currentUser: ", currentUser(c))
-		tor, err = torr.AddTorrentForUser(spec, title, poster, data, category, currentUser(c))
+		tor, err = torr.AddTorrentForUser(spec, title, poster, data, category, user)
 		if err != nil {
 			c.AbortWithError(http.StatusInternalServerError, err)
 			return
@@ -176,6 +176,10 @@ func stream(c *gin.Context) {
 	// preload torrent
 	if preload {
 		torr.Preload(tor, index)
+		if sets.PerUserData && user != "" {
+			sets.SetLastUser(tor.Status().Hash, user, "preload_access")
+			sets.RemLastUser(tor.Status().Hash, "viewed_access")
+		}
 	}
 	// return stat if query
 	if stat {
@@ -190,17 +194,13 @@ func stream(c *gin.Context) {
 		} else if !strings.HasSuffix(strings.ToLower(name), ".m3u") && !strings.HasSuffix(strings.ToLower(name), ".m3u8") {
 			name += ".m3u"
 		}
-		log.TLogln("stream->getM3uList, queryUser: ", c.Query("user"))
-		log.TLogln("stream->getM3uList, currentUser: ", currentUser(c))
-		m3ulist := "#EXTM3U\n" + getM3uList(tor.Status(), utils2.GetScheme(c)+"://"+utils2.GetHost(c), fromlast, currentUser(c))
+		m3ulist := "#EXTM3U\n" + getM3uList(tor.Status(), utils2.GetScheme(c)+"://"+utils2.GetHost(c), fromlast, user)
 		sendM3U(c, name, tor.Hash().HexString(), m3ulist)
 		return
 	} else
 	// return play if query
 	if play {
-		log.TLogln("stream->Stream, currentUser: ", currentUser(c))
-		log.TLogln("stream->Stream, queryUser: ", c.Query("user"))
-		tor.Stream(index, c.Request, c.Writer, currentUser(c))
+		tor.Stream(index, c.Request, c.Writer, user)
 		return
 	}
 }
@@ -215,7 +215,6 @@ func streamNoAuth(c *gin.Context) {
 	title := c.Query("title")
 	poster := c.Query("poster")
 	category := c.Query("category")
-	user := c.Query("user")
 
 	if link == "" {
 		c.AbortWithError(http.StatusBadRequest, errors.New("link should not be empty"))
@@ -276,9 +275,18 @@ func streamNoAuth(c *gin.Context) {
 
 	data := tor.Data
 
+	user := c.Query("user")
+	if sets.PerUserData {
+		log.TLogln("streamNoAuth() user: ", user)
+		log.TLogln("streamNoAuth() query_user: ", c.Query("user"))
+		log.TLogln("streamNoAuth() viewed_access: ", sets.GetLastUser(tor.Status().Hash, "viewed_access"))
+		log.TLogln("streamNoAuth() preload_access: ", sets.GetLastUser(tor.Status().Hash, "preload_access"))
+		if user == "" {
+			user = sets.GetLastUser(tor.Status().Hash, "preload_access")
+		}
+	}
+
 	if tor.Stat == state.TorrentInDB {
-		log.TLogln("streamNoAuth->AddTorrentForUser, queryUser: ", c.Query("user"))
-		log.TLogln("streamNoAuth->AddTorrentForUser, currentUser: ", currentUser(c))
 		tor, err = torr.AddTorrentForUser(spec, title, poster, data, category, user)
 		if err != nil {
 			c.AbortWithError(http.StatusInternalServerError, err)
@@ -317,17 +325,12 @@ func streamNoAuth(c *gin.Context) {
 		} else if !strings.HasSuffix(strings.ToLower(name), ".m3u") && !strings.HasSuffix(strings.ToLower(name), ".m3u8") {
 			name += ".m3u"
 		}
-		log.TLogln("streamNoAuth->getM3uList, queryUser: ", c.Query("user"))
-		log.TLogln("streamNoAuth->getM3uList, currentUser: ", currentUser(c))
-		log.TLogln("streamNoAuth->getM3uList, user: ", user)
 		m3ulist := "#EXTM3U\n" + getM3uList(tor.Status(), utils2.GetScheme(c)+"://"+utils2.GetHost(c), fromlast, user)
 		sendM3U(c, name, tor.Hash().HexString(), m3ulist)
 		return
 	} else
 	// return play if query
 	if play {
-		log.TLogln("streamNoAuth->Stream, currentUser: ", currentUser(c))
-		log.TLogln("streamNoAuth->Stream, queryUser: ", c.Query("user"))
 		tor.Stream(index, c.Request, c.Writer, user)
 		return
 	}

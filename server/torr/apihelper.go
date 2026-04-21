@@ -101,12 +101,17 @@ func ensureTorrentUsers(torr *Torrent) bool {
 	}
 
 	filtered := make([]string, 0, len(torr.Users))
+	seen := make(map[string]struct{}, len(torr.Users))
 	for _, usr := range torr.Users {
 		if len(availableSet) > 0 {
 			if _, ok := availableSet[usr]; !ok {
 				continue
 			}
 		}
+		if _, ok := seen[usr]; ok {
+			continue
+		}
+		seen[usr] = struct{}{}
 		filtered = append(filtered, usr)
 	}
 
