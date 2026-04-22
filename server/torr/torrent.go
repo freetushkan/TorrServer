@@ -312,7 +312,7 @@ func (t *Torrent) Status() *state.TorrentStatus {
 	st.Category = t.Category
 	st.Poster = t.Poster
 	st.Data = t.Data
-	st.Users = append(st.Users, t.Users...)
+	st.Users = t.Users
 	st.Timestamp = t.Timestamp
 	st.TorrentSize = t.Size
 	st.BitRate = t.BitRate

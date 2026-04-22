@@ -211,6 +211,7 @@ func listTorrents(c *gin.Context) {
 	for _, tr := range list {
 		log.TLogln("tr.Status()")
 		stats = append(stats, tr.Status())
+		log.TLogln("finished tr.Status()")
 	}
 	c.JSON(200, stats)
 }
