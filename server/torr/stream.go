@@ -38,7 +38,7 @@ var activeStreams int32
 // 	}
 // }
 
-func (t *Torrent) Stream(fileID int, req *http.Request, resp http.ResponseWriter) error {
+func (t *Torrent) Stream(fileID int, req *http.Request, resp http.ResponseWriter, user string) error {
 	// Increment active streams counter
 	streamID := atomic.AddInt32(&activeStreams, 1)
 	defer atomic.AddInt32(&activeStreams, -1)
@@ -107,6 +107,7 @@ func (t *Torrent) Stream(fileID int, req *http.Request, resp http.ResponseWriter
 	sets.SetViewed(&sets.Viewed{
 		Hash:      t.Hash().HexString(),
 		FileIndex: fileID,
+		User:      user,
 	})
 
 	// Set response headers

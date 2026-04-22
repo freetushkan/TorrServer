@@ -9,19 +9,43 @@ import (
 type Viewed struct {
 	Hash      string `json:"hash"`
 	FileIndex int    `json:"file_index"`
+	User      string `json:"user,omitempty"`
+}
+
+func viewedKey(hash, user string) string {
+	if !PerUserData || user == "" {
+		return hash
+	}
+	return user + ":" + hash
+}
+
+func parseViewedKey(key string) (user, hash string) {
+	if !PerUserData {
+		return "", key
+	}
+	for i := 0; i < len(key); i++ {
+		if key[i] == ':' {
+			return key[:i], key[i+1:]
+		}
+	}
+	return "", key
 }
 
 func SetViewed(vv *Viewed) {
+	if vv == nil || vv.Hash == "" {
+		return
+	}
 	var indexes map[int]struct{}
 	var err error
 
-	buf := tdb.Get("Viewed", vv.Hash)
+	key := viewedKey(vv.Hash, vv.User)
+	buf := tdb.Get("Viewed", key)
 	if len(buf) == 0 {
 		indexes = make(map[int]struct{})
 		indexes[vv.FileIndex] = struct{}{}
 		buf, err = json.Marshal(indexes)
 		if err == nil {
-			tdb.Set("Viewed", vv.Hash, buf)
+			tdb.Set("Viewed", key, buf)
 		}
 	} else {
 		err = json.Unmarshal(buf, &indexes)
@@ -29,7 +53,7 @@ func SetViewed(vv *Viewed) {
 			indexes[vv.FileIndex] = struct{}{}
 			buf, err = json.Marshal(indexes)
 			if err == nil {
-				tdb.Set("Viewed", vv.Hash, buf)
+				tdb.Set("Viewed", key, buf)
 			}
 		}
 	}
@@ -39,7 +63,14 @@ func SetViewed(vv *Viewed) {
 }
 
 func RemViewed(vv *Viewed) {
-	buf := tdb.Get("Viewed", vv.Hash)
+	if vv == nil || vv.Hash == "" {
+		return
+	}
+	key := viewedKey(vv.Hash, vv.User)
+	buf := tdb.Get("Viewed", key)
+	if len(buf) == 0 {
+		return
+	}
 	var indeces map[int]struct{}
 	err := json.Unmarshal(buf, &indeces)
 	if err == nil {
@@ -47,10 +78,10 @@ func RemViewed(vv *Viewed) {
 			delete(indeces, vv.FileIndex)
 			buf, err = json.Marshal(indeces)
 			if err == nil {
-				tdb.Set("Viewed", vv.Hash, buf)
+				tdb.Set("Viewed", key, buf)
 			}
 		} else {
-			tdb.Rem("Viewed", vv.Hash)
+			tdb.Rem("Viewed", key)
 		}
 	}
 	if err != nil {
@@ -59,9 +90,14 @@ func RemViewed(vv *Viewed) {
 }
 
 func ListViewed(hash string) []*Viewed {
+	return ListViewedForUser(hash, "")
+}
+
+func ListViewedForUser(hash, user string) []*Viewed {
 	var err error
 	if hash != "" {
-		buf := tdb.Get("Viewed", hash)
+		key := viewedKey(hash, user)
+		buf := tdb.Get("Viewed", key)
 		if len(buf) == 0 {
 			return []*Viewed{}
 		}
@@ -70,7 +106,7 @@ func ListViewed(hash string) []*Viewed {
 		if err == nil {
 			var ret []*Viewed
 			for i := range indeces {
-				ret = append(ret, &Viewed{hash, i})
+				ret = append(ret, &Viewed{Hash: hash, FileIndex: i, User: user})
 			}
 			return ret
 		}
@@ -78,6 +114,10 @@ func ListViewed(hash string) []*Viewed {
 		var ret []*Viewed
 		keys := tdb.List("Viewed")
 		for _, key := range keys {
+			keyUser, keyHash := parseViewedKey(key)
+			if PerUserData && user != "" && keyUser != user {
+				continue
+			}
 			buf := tdb.Get("Viewed", key)
 			if len(buf) == 0 {
 				return []*Viewed{}
@@ -86,7 +126,7 @@ func ListViewed(hash string) []*Viewed {
 			err = json.Unmarshal(buf, &indeces)
 			if err == nil {
 				for i := range indeces {
-					ret = append(ret, &Viewed{key, i})
+					ret = append(ret, &Viewed{Hash: keyHash, FileIndex: i, User: keyUser})
 				}
 			}
 		}
