@@ -299,6 +299,7 @@ func RemTorrentForUser(hashHex, user string) {
 }
 
 func ListTorrent() []*Torrent {
+	log.TLogln("ListTorrent()")
 	btlist := bts.ListTorrents()
 	dblist := ListTorrentsDB()
 
@@ -325,6 +326,7 @@ func ListTorrent() []*Torrent {
 }
 
 func ListTorrentForUser(user string) []*Torrent {
+	log.TLogln("ListTorrentForUser()")
 	list := ListTorrent()
 	if !sets.PerUserData {
 		return list

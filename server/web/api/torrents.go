@@ -201,6 +201,7 @@ func remTorrent(req torrReqJS, c *gin.Context) {
 }
 
 func listTorrents(c *gin.Context) {
+	log.TLogln("listTorrents()")
 	list := torr.ListTorrentForUser(currentUser(c))
 	if len(list) == 0 {
 		c.JSON(200, []*state.TorrentStatus{})
@@ -208,6 +209,7 @@ func listTorrents(c *gin.Context) {
 	}
 	var stats []*state.TorrentStatus
 	for _, tr := range list {
+		log.TLogln("tr.Status()")
 		stats = append(stats, tr.Status())
 	}
 	c.JSON(200, stats)
