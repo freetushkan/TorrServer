@@ -74,7 +74,6 @@ func Start() {
 			log.TLogln("tg bot start failed", err)
 		}
 	}
-	settings.MigrateTorrentUsers()
 	web.Start()
 }
 

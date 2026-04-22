@@ -148,7 +148,6 @@ func SetBTSets(sets *BTSets) {
 
 	BTsets = sets
 	PerUserData = sets.PerUserData || (Args != nil && Args.PerUserData)
-	MigrateTorrentUsers()
 	buf, err := json.Marshal(BTsets)
 	if err != nil {
 		log.TLogln("Error marshal btsets", err)
