@@ -178,7 +178,6 @@ func stream(c *gin.Context) {
 		torr.Preload(tor, index)
 		if sets.PerUserData && user != "" {
 			sets.SetLastUser(tor.Status().Hash, user, "preload_access")
-			sets.RemLastUser(tor.Status().Hash, "viewed_access")
 		}
 	}
 	// return stat if query
@@ -277,10 +276,6 @@ func streamNoAuth(c *gin.Context) {
 
 	user := c.Query("user")
 	if sets.PerUserData {
-		log.TLogln("streamNoAuth() user: ", user)
-		log.TLogln("streamNoAuth() query_user: ", c.Query("user"))
-		log.TLogln("streamNoAuth() viewed_access: ", sets.GetLastUser(tor.Status().Hash, "viewed_access"))
-		log.TLogln("streamNoAuth() preload_access: ", sets.GetLastUser(tor.Status().Hash, "preload_access"))
 		if user == "" {
 			user = sets.GetLastUser(tor.Status().Hash, "preload_access")
 		}

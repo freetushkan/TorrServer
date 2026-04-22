@@ -13,7 +13,6 @@ import (
 
 	"github.com/anacrolix/missinggo/v2/httptoo"
 
-	"server/log"
 	sets "server/settings"
 	"server/torr"
 	"server/torr/state"
@@ -75,10 +74,6 @@ func playList(c *gin.Context) {
 	}
 	user := currentUser(c)
 	if sets.PerUserData {
-		log.TLogln("playList() user: ", user)
-		log.TLogln("playList() query_user: ", c.Query("user"))
-		log.TLogln("playList() viewed_access: ", sets.GetLastUser(hash, "viewed_access"))
-		log.TLogln("playList() preload_access: ", sets.GetLastUser(hash, "preload_access"))
 		if user == "" {
 			user = c.Query("user")
 			if user == "" {

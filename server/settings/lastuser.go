@@ -110,38 +110,3 @@ func GetLastUser(hash, access string) string {
 	}
 	return lu.getUser(access)
 }
-
-func RemLastUser(hash, access string) {
-	if hash == "" {
-		return
-	}
-	access = normalizeLastUserAccess(access)
-	if access == "" {
-		return
-	}
-
-	key := lastUserKey(hash)
-	buf := tdb.Get("LastUser", key)
-	if len(buf) == 0 {
-		return
-	}
-
-	var lu LastUserData
-	if err := json.Unmarshal(buf, &lu); err != nil {
-		log.TLogln("Error rem last user:", err)
-		return
-	}
-
-	lu.removeUser(access)
-	if lu.ViewedAccess == "" && lu.PreloadAccess == "" {
-		tdb.Rem("LastUser", key)
-		return
-	}
-
-	buf, err := json.Marshal(&lu)
-	if err != nil {
-		log.TLogln("Error rem last user:", err)
-		return
-	}
-	tdb.Set("LastUser", key, buf)
-}
