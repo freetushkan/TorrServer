@@ -1,9 +1,13 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"server/torrshash"
+	"strconv"
 	"strings"
+	"sync/atomic"
+	"time"
 
 	"server/dlna"
 	"server/log"
@@ -17,10 +21,20 @@ import (
 	"github.com/pkg/errors"
 )
 
+var torrentsTraceSeq uint64
+
 func currentUser(c *gin.Context) string {
 	user, _ := c.Get(gin.AuthUserKey)
 	login, _ := user.(string)
 	return login
+}
+
+func traceID(c *gin.Context) string {
+	if id := strings.TrimSpace(c.GetHeader("X-Trace-ID")); id != "" {
+		return id
+	}
+	seq := atomic.AddUint64(&torrentsTraceSeq, 1)
+	return "torrents-" + strconv.FormatInt(time.Now().UnixMilli(), 10) + "-" + fmt.Sprint(seq)
 }
 
 // Action: add, get, set, rem, list, drop
@@ -201,18 +215,27 @@ func remTorrent(req torrReqJS, c *gin.Context) {
 }
 
 func listTorrents(c *gin.Context) {
-	log.TLogln("listTorrents()")
-	list := torr.ListTorrentForUser(currentUser(c))
+	start := time.Now()
+	tid := traceID(c)
+	user := currentUser(c)
+	log.TLogln("[", tid, "] listTorrents() user=", user)
+	list := torr.ListTorrentForUser(user)
+	listDur := time.Since(start)
 	if len(list) == 0 {
+		log.TLogln("[", tid, "] listTorrents(): empty list, listDur=", listDur, " total=", time.Since(start))
 		c.JSON(200, []*state.TorrentStatus{})
 		return
 	}
 	var stats []*state.TorrentStatus
 	for _, tr := range list {
-		log.TLogln("tr.Status()")
+		statusStart := time.Now()
 		stats = append(stats, tr.Status())
-		log.TLogln("finished tr.Status()")
+		statusDur := time.Since(statusStart)
+		if statusDur > time.Second {
+			log.TLogln("[", tid, "] listTorrents(): slow tr.Status hash=", tr.Hash(), " took=", statusDur)
+		}
 	}
+	log.TLogln("[", tid, "] listTorrents(): user=", user, " torrents=", len(list), " listDur=", listDur, " total=", time.Since(start))
 	c.JSON(200, stats)
 }
 

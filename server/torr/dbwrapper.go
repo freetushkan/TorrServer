@@ -2,7 +2,10 @@ package torr
 
 import (
 	"encoding/json"
+	"slices"
+	"time"
 
+	"server/log"
 	"server/settings"
 	"server/torr/state"
 	"server/torr/utils"
@@ -72,15 +75,23 @@ func RemTorrentDB(hash metainfo.Hash) {
 }
 
 func SetTorrentUsersDB(hash metainfo.Hash, users []string) {
+	start := time.Now()
 	list := settings.ListTorrent()
+	listDur := time.Since(start)
 	for _, db := range list {
 		if db.InfoHash != hash {
 			continue
 		}
+		if slices.Equal(db.Users, users) {
+			log.TLogln("SetTorrentUsersDB(): hash=", hash.HexString(), " users unchanged=", len(users), " list=", len(list), " listDur=", listDur, " total=", time.Since(start))
+			return
+		}
 		db.Users = append([]string(nil), users...)
 		settings.AddTorrent(db)
+		log.TLogln("SetTorrentUsersDB(): hash=", hash.HexString(), " users=", len(users), " list=", len(list), " listDur=", listDur, " total=", time.Since(start))
 		return
 	}
+	log.TLogln("SetTorrentUsersDB(): hash=", hash.HexString(), " not found in list=", len(list), " listDur=", listDur, " total=", time.Since(start))
 }
 
 func ListTorrentsDB() map[metainfo.Hash]*Torrent {

@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/metainfo"
+	"server/log"
 )
 
 type TorrentDB struct {
@@ -55,6 +57,7 @@ func AddTorrent(torr *TorrentDB) {
 }
 
 func ListTorrent() []*TorrentDB {
+	start := time.Now()
 	// Use read lock to prevent migration during read
 	dbMigrationLock.RLock()
 	defer dbMigrationLock.RUnlock()
@@ -63,20 +66,35 @@ func ListTorrent() []*TorrentDB {
 	defer mu.Unlock()
 
 	var list []*TorrentDB
+	listStart := time.Now()
 	keys := tdb.List("Torrents")
+	log.TLogln("settings.ListTorrent: list keys=", len(keys), " took=", time.Since(listStart))
 	for _, key := range keys {
+		getStart := time.Now()
 		buf := tdb.Get("Torrents", key)
+		getDur := time.Since(getStart)
+		if getDur > 250*time.Millisecond {
+			log.TLogln("settings.ListTorrent: slow get key=", key, " took=", getDur)
+		}
 		if len(buf) > 0 {
 			var torr *TorrentDB
+			unmarshalStart := time.Now()
 			err := json.Unmarshal(buf, &torr)
 			if err == nil {
 				list = append(list, torr)
+			} else {
+				log.TLogln("settings.ListTorrent: unmarshal failed key=", key, " err=", err)
+			}
+			unmarshalDur := time.Since(unmarshalStart)
+			if unmarshalDur > 250*time.Millisecond {
+				log.TLogln("settings.ListTorrent: slow unmarshal key=", key, " took=", unmarshalDur)
 			}
 		}
 	}
 	sort.Slice(list, func(i, j int) bool {
 		return list[i].Timestamp > list[j].Timestamp
 	})
+	log.TLogln("settings.ListTorrent: loaded=", len(list), " total=", time.Since(start))
 	return list
 }
 

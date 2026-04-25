@@ -115,10 +115,6 @@ func ensureTorrentUsers(torr *Torrent) bool {
 		filtered = append(filtered, usr)
 	}
 
-	if len(filtered) == 0 && len(available) > 0 {
-		filtered = append(filtered, available...)
-	}
-
 	if slices.Equal(torr.Users, filtered) {
 		return false
 	}
@@ -166,8 +162,9 @@ func AddTorrentForUser(spec *torrent.TorrentSpec, title, poster, data, category,
 	if err != nil {
 		return nil, err
 	}
-	addUserToTorrent(torr, user)
-	SetTorrentUsersDB(torr.Hash(), torr.Users)
+	if addUserToTorrent(torr, user) {
+		SetTorrentUsersDB(torr.Hash(), torr.Users)
+	}
 	return torr, nil
 }
 
@@ -287,21 +284,27 @@ func RemTorrentForUser(hashHex, user string) {
 		return
 	}
 
-	ensureTorrentUsers(torr)
+	normalized := ensureTorrentUsers(torr)
+	removed := false
 	if len(torr.Users) > 1 {
-		removeUserFromTorrent(torr, user)
+		removed = removeUserFromTorrent(torr, user)
 	} else {
 		RemTorrent(hashHex)
 		return
 	}
 
-	SetTorrentUsersDB(hash, torr.Users)
+	if normalized || removed {
+		SetTorrentUsersDB(hash, torr.Users)
+	}
 }
 
 func ListTorrent() []*Torrent {
+	start := time.Now()
 	log.TLogln("ListTorrent()")
 	btlist := bts.ListTorrents()
+	btDur := time.Since(start)
 	dblist := ListTorrentsDB()
+	dbDur := time.Since(start) - btDur
 
 	for hash, t := range dblist {
 		if _, ok := btlist[hash]; !ok {
@@ -321,17 +324,21 @@ func ListTorrent() []*Torrent {
 			return ret[i].Title > ret[j].Title
 		}
 	})
+	log.TLogln("ListTorrent(): bt=", len(btlist), " db=", len(dblist), " ret=", len(ret), " btDur=", btDur, " dbDur=", dbDur, " total=", time.Since(start))
 
 	return ret
 }
 
 func ListTorrentForUser(user string) []*Torrent {
+	start := time.Now()
 	log.TLogln("ListTorrentForUser()")
 	list := ListTorrent()
 	if !sets.PerUserData {
+		log.TLogln("ListTorrentForUser(): per-user disabled, returned=", len(list), " total=", time.Since(start))
 		return list
 	}
 	if user == "" {
+		log.TLogln("ListTorrentForUser(): empty user, returned=", len(list), " total=", time.Since(start))
 		return list
 	}
 
@@ -341,6 +348,7 @@ func ListTorrentForUser(user string) []*Torrent {
 			ret = append(ret, tor)
 		}
 	}
+	log.TLogln("ListTorrentForUser(): user=", user, " base=", len(list), " filtered=", len(ret), " total=", time.Since(start))
 
 	return ret
 }
