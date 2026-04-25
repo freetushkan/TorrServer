@@ -447,6 +447,7 @@ func SetStoragePreferences(prefs map[string]interface{}) error {
 }
 
 func MigrateTorrentUsers() {
+	log.TLogln("Migrating torrents and viewed state data to users")
 	users := ListUsers()
 	if !PerUserData || len(users) == 0 {
 		return
