@@ -446,6 +446,24 @@ func SetStoragePreferences(prefs map[string]interface{}) error {
 	return nil
 }
 
+func MigrateTorrentUsers() {
+	users := ListUsers()
+	if !PerUserData || len(users) == 0 {
+		return
+	}
+
+	for _, db := range ListTorrent() {
+		if len(db.Users) != 0 {
+			continue
+		}
+		db.Users = append([]string(nil), users...)
+		AddTorrent(db)
+		if db.TorrentSpec != nil {
+			CopyViewedToUsers(db.TorrentSpec.InfoHash.HexString(), db.Users)
+		}
+	}
+}
+
 func CloseDB() {
 	if tdb != nil {
 		tdb.CloseDB()
