@@ -2,6 +2,7 @@ package torr
 
 import (
 	"encoding/json"
+	"slices"
 
 	"server/settings"
 	"server/torr/state"
@@ -36,6 +37,7 @@ func AddTorrentDB(torr *Torrent) {
 	if torr.Poster != "" && utils.CheckImgUrl(torr.Poster) {
 		t.Poster = torr.Poster
 	}
+	t.Users = torr.Users
 	t.Size = torr.Size
 	if t.Size == 0 && torr.Torrent != nil {
 		t.Size = torr.Torrent.Length()
@@ -58,6 +60,7 @@ func GetTorrentDB(hash metainfo.Hash) *Torrent {
 			torr.Timestamp = db.Timestamp
 			torr.Size = db.Size
 			torr.Data = db.Data
+			torr.Users = db.Users
 			torr.Stat = state.TorrentInDB
 			return torr
 		}
@@ -67,6 +70,21 @@ func GetTorrentDB(hash metainfo.Hash) *Torrent {
 
 func RemTorrentDB(hash metainfo.Hash) {
 	settings.RemTorrent(hash)
+}
+
+func SetTorrentUsersDB(hash metainfo.Hash, users []string) {
+	list := settings.ListTorrent()
+	for _, db := range list {
+		if db.InfoHash != hash {
+			continue
+		}
+		if slices.Equal(db.Users, users) {
+			return
+		}
+		db.Users = append([]string(nil), users...)
+		settings.AddTorrent(db)
+		return
+	}
 }
 
 func ListTorrentsDB() map[metainfo.Hash]*Torrent {
@@ -81,6 +99,7 @@ func ListTorrentsDB() map[metainfo.Hash]*Torrent {
 		torr.Timestamp = db.Timestamp
 		torr.Size = db.Size
 		torr.Data = db.Data
+		torr.Users = db.Users
 		torr.Stat = state.TorrentInDB
 		ret[torr.TorrentSpec.InfoHash] = torr
 	}
