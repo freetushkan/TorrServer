@@ -50,6 +50,7 @@ type args struct {
 	WebDAV      bool   `help:"web dav enable"`
 	ProxyURL    string `help:"proxy URL for BitTorrent traffic (http, socks4, socks5, socks5h), e.g. socks5://user:password@127.0.0.1:8080"`
 	ProxyMode   string `help:"proxy mode: tracker (only HTTP trackers, default), peers (only peer connections), or full (all traffic)"`
+	ForceHTTPS  bool   `arg:"--force-https" help:"redirect all HTTP requests to HTTPS (requires --ssl)"`
 	PerUserData bool   `help:"enable per-user data isolation for torrents and viewed status"`
 }
 
@@ -173,11 +174,17 @@ func main() {
 		WebDAV:      params.WebDAV,
 		ProxyURL:    params.ProxyURL,
 		ProxyMode:   params.ProxyMode,
+		ForceHTTPS:  params.ForceHTTPS,
 		PerUserData: params.PerUserData,
 	}
 
 	if params.ProxyURL != "" {
 		log.TLogln("Proxy configured from CLI:", params.ProxyURL, "mode:", settings.Args.ProxyMode)
+	}
+
+	if params.ForceHTTPS && !params.Ssl {
+		log.TLogln("Error: --force-https requires --ssl")
+		os.Exit(1)
 	}
 
 	server.Start()
