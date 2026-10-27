@@ -5,6 +5,8 @@ go 1.25.7
 replace (
 	github.com/anacrolix/torrent v1.59.1 => github.com/tsynik/torrent v1.2.25
 	github.com/anacrolix/upnp v0.1.4 => github.com/tsynik/upnp v0.1.5
+	// v0.0.8 + fix for nil-pointer panic in discover.connect (peer evicted during dial)
+	github.com/YouROK/tunsgo v0.0.8 => ./third_party/tunsgo
 )
 
 require (
