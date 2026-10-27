@@ -52,6 +52,7 @@ type args struct {
 	ProxyMode   string   `help:"proxy mode: tracker (only HTTP trackers, default), peers (only peer connections), or full (all traffic)"`
 	ForceHTTPS  bool     `arg:"--force-https" help:"redirect all HTTP requests to HTTPS (requires --ssl)"`
 	HTTPSOnly   bool     `arg:"--https-only" help:"with --ssl, don't open the plain HTTP port (--port): everything is served over HTTPS only. Players and TVs need a trusted certificate"`
+	PerUserData bool     `help:"fork: separate torrents and viewed marks per HTTP auth account (forces the setting on)"`
 	HTTPMedia   bool     `arg:"--http-media" help:"with --force-https, keep serving media URLs (/stream, /play, playlists) over plain HTTP for players and TVs that can't use HTTPS. Stream URLs and Basic auth credentials then travel unencrypted: use on trusted networks only"`
 }
 
@@ -180,6 +181,7 @@ func main() {
 		ForceHTTPS:  params.ForceHTTPS,
 		HTTPMedia:   params.HTTPMedia,
 		HTTPSOnly:   params.HTTPSOnly,
+		PerUserData: params.PerUserData,
 	}
 
 	if params.ProxyURL != "" {

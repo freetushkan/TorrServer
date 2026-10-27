@@ -137,6 +137,7 @@ func stream(c *gin.Context) {
 		}
 	}
 
+	user := requestUser(c, spec.InfoHash.HexString(), "") // fork: per-user data
 	tor := torr.GetTorrent(spec.InfoHash.HexString())
 	if tor != nil {
 		title = tor.Title
@@ -145,7 +146,7 @@ func stream(c *gin.Context) {
 		category = tor.Category
 	}
 	if tor == nil || tor.Stat == state.TorrentInDB {
-		tor, err = torr.AddTorrent(spec, title, poster, data, category)
+		tor, err = torr.AddTorrentForUser(user, spec, title, poster, data, category)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": fmt.Errorf("error adding torrent: %v", err).Error()})
 			return
@@ -184,6 +185,7 @@ func stream(c *gin.Context) {
 	// preload torrent
 	if preload {
 		torr.Preload(tor, index)
+		rememberPreloadUser(tor.Hash().HexString(), user) // fork: per-user data
 	}
 	// return stat if query
 	if stat {
@@ -198,7 +200,7 @@ func stream(c *gin.Context) {
 		} else if !strings.HasSuffix(strings.ToLower(name), ".m3u") && !strings.HasSuffix(strings.ToLower(name), ".m3u8") {
 			name += ".m3u"
 		}
-		m3ulist := "#EXTM3U\n" + getM3uList(tor.Status(), mediaBaseURL(c), fromlast, indexStr)
+		m3ulist := "#EXTM3U\n" + getM3uList(tor.Status(), mediaBaseURL(c), fromlast, indexStr, user)
 		sendM3U(c, name, tor.Hash().HexString(), m3ulist)
 		return
 	} else
@@ -258,6 +260,7 @@ func streamNoAuth(c *gin.Context) {
 		}
 	}
 
+	user := requestUser(c, spec.InfoHash.HexString(), lastPreload) // fork: per-user data
 	tor := torr.GetTorrent(spec.InfoHash.HexString())
 	if tor == nil {
 		c.Header("WWW-Authenticate", "Basic realm=Authorization Required")
@@ -318,7 +321,7 @@ func streamNoAuth(c *gin.Context) {
 		} else if !strings.HasSuffix(strings.ToLower(name), ".m3u") && !strings.HasSuffix(strings.ToLower(name), ".m3u8") {
 			name += ".m3u"
 		}
-		m3ulist := "#EXTM3U\n" + getM3uList(tor.Status(), mediaBaseURL(c), fromlast, indexStr)
+		m3ulist := "#EXTM3U\n" + getM3uList(tor.Status(), mediaBaseURL(c), fromlast, indexStr, user)
 		sendM3U(c, name, tor.Hash().HexString(), m3ulist)
 		return
 	} else
