@@ -51,8 +51,12 @@ jobs:
           echo "new=$NEW" >> "$GITHUB_OUTPUT"
           if [ "$(git rev-parse "$OLD^{commit}")" = "$(git rev-parse "$NEW^{commit}")" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
-          elif gh issue list --state all --search "in:title \"Upstream $NEW\"" --json number --jq 'length' | grep -qv '^0$'; then
-            echo "already handled $NEW"; echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "### Нечего делать: master уже на \`$NEW\` — это последний тег апстрима" >> "$GITHUB_STEP_SUMMARY"
+          elif [ -z '${{ inputs.tag }}' ] && gh issue list --state all --search "in:title \"Upstream $NEW\"" --json number --jq 'length' | grep -qv '^0$'; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "### \`$NEW\` уже обработан — см. issue «Upstream $NEW» (чтобы прогнать заново, запустите вручную, вписав tag)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### Переношу \`$OLD\` → \`$NEW\`, результат будет в Issues" >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - uses: actions/setup-go@v7
@@ -80,7 +84,7 @@ jobs:
         id: web
         if: steps.rebase.outputs.code == '0'
         run: |
-          cd web && yarn install --frozen-lockfile && CI=false yarn build
+          cd web && yarn install --frozen-lockfile && CI=true yarn build  # same as ts_release: lint warnings fail
 
       - name: Report
         if: steps.tags.outputs.skip != 'true' && always()

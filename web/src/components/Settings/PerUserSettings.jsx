@@ -1,10 +1,10 @@
 // Per-user data separation (fork feature, not in upstream).
 // Self-contained: translations are registered here, so upstream locale files
 // and the settings component only need a single include line.
-import i18n from '../../i18n'
 import { useTranslation } from 'react-i18next'
 import { FormControlLabel, FormGroup, FormHelperText, Switch } from '@material-ui/core'
 
+import i18n from '../../i18n'
 import { SettingSectionLabel } from './style'
 
 const translations = {
@@ -25,9 +25,9 @@ const translations = {
 }
 translations.ua = translations.ru
 
-Object.entries(translations).forEach(([lng, keys]) =>
-  i18n.addResourceBundle(lng, 'translation', { SettingsDialog: { PerUser: keys } }, true, false),
-)
+Object.entries(translations).forEach(([lng, keys]) => {
+  i18n.addResourceBundle(lng, 'translation', { SettingsDialog: { PerUser: keys } }, true, false)
+})
 
 export default function PerUserSettings({ settings, inputForm }) {
   const { t } = useTranslation()
