@@ -18,6 +18,7 @@ import { useEffect, useMemo, useState } from 'react'
 
 import { SecondarySettingsContent, SettingSectionLabel } from './style'
 import HTTPSSettings from './HTTPSSettings'
+import PerUserSettings from './PerUserSettings' // fork: per-user data
 
 // Create a styled status message component
 const StatusMessage = styled('div')(({ theme, severity }) => ({
@@ -408,6 +409,8 @@ export default function SecondarySettingsComponent({ settings, inputForm, update
         />
         <FormHelperText margin='none'>{t('SettingsDialog.ShowFSActiveTorrHint')}</FormHelperText>
       </FormGroup>
+      {/* fork: per-user data */}
+      <PerUserSettings settings={settings} inputForm={inputForm} />
       {/* Storage Settings Section */}
       <Box mt={4} mb={2}>
         <SettingSectionLabel>{t('SettingsDialog.StorageConfiguration')}</SettingSectionLabel>

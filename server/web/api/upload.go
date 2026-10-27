@@ -81,7 +81,7 @@ func torrentUpload(c *gin.Context) {
 			continue
 		}
 
-		tor, err := torr.AddTorrent(spec, title, poster, data, category)
+		tor, err := torr.AddTorrentForUser(currentUser(c), spec, title, poster, data, category)
 		if err != nil {
 			log.TLogln("error upload torrent:", err)
 			continue

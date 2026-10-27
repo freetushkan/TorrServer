@@ -96,6 +96,7 @@ type BTSets struct {
 
 	// FS
 	ShowFSActiveTorr bool
+	PerUserData      bool // fork: per-user data separation, see peruser.go
 
 	// Storage preferences
 	StoreSettingsInJson bool
