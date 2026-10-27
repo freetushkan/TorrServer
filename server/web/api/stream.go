@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	sets "server/settings"
 	"server/torr"
 	"server/torr/state"
 	utils2 "server/utils"
@@ -65,6 +66,7 @@ func stream(c *gin.Context) {
 	title := c.Query("title")
 	poster := c.Query("poster")
 	category := c.Query("category")
+	user := currentUser(c)
 
 	data := ""
 
@@ -135,7 +137,7 @@ func stream(c *gin.Context) {
 		category = tor.Category
 	}
 	if tor == nil || tor.Stat == state.TorrentInDB {
-		tor, err = torr.AddTorrent(spec, title, poster, data, category)
+		tor, err = torr.AddTorrentForUser(spec, title, poster, data, category, user)
 		if err != nil {
 			c.AbortWithError(http.StatusInternalServerError, err)
 			return
@@ -174,6 +176,9 @@ func stream(c *gin.Context) {
 	// preload torrent
 	if preload {
 		torr.Preload(tor, index)
+		if sets.PerUserData && user != "" {
+			sets.SetLastUser(tor.Status().Hash, user, "preload_access")
+		}
 	}
 	// return stat if query
 	if stat {
@@ -188,13 +193,13 @@ func stream(c *gin.Context) {
 		} else if !strings.HasSuffix(strings.ToLower(name), ".m3u") && !strings.HasSuffix(strings.ToLower(name), ".m3u8") {
 			name += ".m3u"
 		}
-		m3ulist := "#EXTM3U\n" + getM3uList(tor.Status(), utils2.GetScheme(c)+"://"+utils2.GetHost(c), fromlast)
+		m3ulist := "#EXTM3U\n" + getM3uList(tor.Status(), utils2.GetScheme(c)+"://"+utils2.GetHost(c), fromlast, user)
 		sendM3U(c, name, tor.Hash().HexString(), m3ulist)
 		return
 	} else
 	// return play if query
 	if play {
-		tor.Stream(index, c.Request, c.Writer)
+		tor.Stream(index, c.Request, c.Writer, user)
 		return
 	}
 }
@@ -269,8 +274,15 @@ func streamNoAuth(c *gin.Context) {
 
 	data := tor.Data
 
+	user := c.Query("user")
+	if sets.PerUserData {
+		if user == "" {
+			user = sets.GetLastUser(tor.Status().Hash, "preload_access")
+		}
+	}
+
 	if tor.Stat == state.TorrentInDB {
-		tor, err = torr.AddTorrent(spec, title, poster, data, category)
+		tor, err = torr.AddTorrentForUser(spec, title, poster, data, category, user)
 		if err != nil {
 			c.AbortWithError(http.StatusInternalServerError, err)
 			return
@@ -308,13 +320,13 @@ func streamNoAuth(c *gin.Context) {
 		} else if !strings.HasSuffix(strings.ToLower(name), ".m3u") && !strings.HasSuffix(strings.ToLower(name), ".m3u8") {
 			name += ".m3u"
 		}
-		m3ulist := "#EXTM3U\n" + getM3uList(tor.Status(), utils2.GetScheme(c)+"://"+utils2.GetHost(c), fromlast)
+		m3ulist := "#EXTM3U\n" + getM3uList(tor.Status(), utils2.GetScheme(c)+"://"+utils2.GetHost(c), fromlast, user)
 		sendM3U(c, name, tor.Hash().HexString(), m3ulist)
 		return
 	} else
 	// return play if query
 	if play {
-		tor.Stream(index, c.Request, c.Writer)
+		tor.Stream(index, c.Request, c.Writer, user)
 		return
 	}
 	c.Header("WWW-Authenticate", "Basic realm=Authorization Required")

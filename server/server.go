@@ -72,6 +72,7 @@ func Start() {
 	if settings.Args.TGToken != "" {
 		tgbot.Start(settings.Args.TGToken)
 	}
+	settings.MigrateTorrentUsers()
 	web.Start()
 }
 
