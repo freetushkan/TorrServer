@@ -1,6 +1,7 @@
 # Fork only: try to move the fork commits onto every new upstream release tag.
-# Never touches master. On success pushes branch sync/<tag> and opens an issue
-# with the commands to publish it; on conflicts opens an issue listing them.
+# The scheduled run never touches master: on success it pushes branch
+# sync/<tag> and opens an issue; on conflicts it opens an issue with the log.
+# Run manually with "publish" checked to make master = sync/<tag>.
 name: Fork upstream sync
 
 on:
@@ -11,6 +12,10 @@ on:
       tag:
         description: "Upstream tag to rebase onto (default: newest MatriX.*)"
         required: false
+      publish:
+        description: "Publish: replace master with the already checked branch sync/<tag>"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -22,6 +27,7 @@ concurrency:
 
 jobs:
   sync:
+    if: ${{ !inputs.publish }}
     runs-on: ubuntu-22.04
     env:
       GH_TOKEN: ${{ github.token }}
@@ -84,25 +90,49 @@ jobs:
           if [ '${{ steps.rebase.outputs.code }}' = '0' ] && [ '${{ steps.web.outcome }}' = 'success' ]; then
             git push --force origin "sync/$NEW"
             {
-              echo "The fork commits rebased cleanly from \`$OLD\` onto \`$NEW\`;"
-              echo "build, fork tests, hook check and web build passed."
+              echo "Коммиты форка перенесены с \`$OLD\` на \`$NEW\`: сборка, тесты, проверка хуков и веб — ок."
               echo
-              echo '```sh'
-              echo "git fetch origin sync/$NEW"
-              echo "git push --force-with-lease origin origin/sync/$NEW:master"
-              echo "git tag $NEW.MU.r1 origin/sync/$NEW && git push origin $NEW.MU.r1"
-              echo '```'
+              echo "Опубликовать (всё в браузере):"
+              echo "1. **Actions → Fork upstream sync → Run workflow**: tag \`$NEW\`, галочка **publish** → Run."
+              echo "2. Когда он позеленеет: **Releases → Draft a new release → Choose a tag** → впишите \`$NEW.MU.r1\` → *Create new tag*, Target: \`master\` → **Publish release**."
+              echo "   Это запустит сборку бинарников (Build and Release), они сами прикрепятся к релизу."
             } > body.md
             gh issue create --title "Upstream $NEW: ready" --body-file body.md
           else
             {
-              echo "Automatic rebase from \`$OLD\` onto \`$NEW\` needs a hand."
+              echo "Автоматически перенести с \`$OLD\` на \`$NEW\` не получилось — нужен человек."
               echo
-              echo "Locally: \`fork/rebase-onto.sh $NEW\`, resolve, \`fork/rebase-onto.sh --verify\`."
+              echo "В терминале (или в Codespace): \`fork/rebase-onto.sh $NEW\`, поправить конфликты, \`fork/rebase-onto.sh --verify\`. Подсказки — fork/README.md."
               echo
               echo '```'
               tail -n 60 rebase.log 2>/dev/null || echo "(no log)"
               echo '```'
             } > body.md
             gh issue create --title "Upstream $NEW: needs attention" --body-file body.md
+          fi
+
+  publish:
+    if: ${{ inputs.publish }}
+    runs-on: ubuntu-22.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: master = sync/<tag>
+        run: |
+          TAG='${{ inputs.tag }}'
+          if [ -z "$TAG" ]; then
+            TAG=$(git branch -r --list 'origin/sync/MatriX.*' | sed 's#.*origin/sync/##' | sort -V | tail -1)
+          fi
+          [ -n "$TAG" ] || { echo "no sync/* branch found"; exit 1; }
+          git rev-parse -q --verify "origin/sync/$TAG" >/dev/null || { echo "no branch sync/$TAG — run without publish first"; exit 1; }
+          echo "master: $(git rev-parse --short origin/master) -> $(git rev-parse --short origin/sync/$TAG)"
+          git push --force origin "origin/sync/$TAG:refs/heads/master"
+          N=$(gh issue list --state open --search "in:title \"Upstream $TAG: ready\"" --json number --jq '.[0].number')
+          if [ -n "$N" ]; then
+            gh issue close "$N" --comment "master обновлён до sync/$TAG. Осталось создать релиз с тегом $TAG.MU.r1 (Releases → Draft a new release)."
           fi

@@ -12,14 +12,26 @@
 
 ## Перенос на новый тег апстрима
 
-Автоматически: workflow **Fork upstream sync** раз в сутки смотрит теги
-YouROK/TorrServer. Если вышел новый — пробует перенос и открывает issue:
+Один раз включить: **Settings → General → Features → Issues** (в форках они
+выключены по умолчанию) и убедиться, что вкладка **Actions** включена.
 
-- `Upstream <тег>: ready` — всё собралось, тесты и проверки прошли, ветка
-  `sync/<тег>` запушена; в issue три команды, чтобы опубликовать;
-- `Upstream <тег>: needs attention` — конфликт или что-то не собралось; в issue лог.
+Дальше всё в браузере:
 
-Вручную (то же самое, локально):
+1. Раз в сутки workflow **Fork upstream sync** смотрит теги YouROK/TorrServer.
+   Не хотите ждать — **Actions → Fork upstream sync → Run workflow** (поля пустые).
+2. Приходит issue:
+   - `Upstream <тег>: ready` — перенос прошёл, всё собралось, ветка `sync/<тег>` готова;
+   - `Upstream <тег>: needs attention` — конфликт, нужен терминал (см. ниже).
+3. **Actions → Fork upstream sync → Run workflow**, tag = `<тег>`, галочка
+   **publish** → `master` становится `sync/<тег>`, issue закрывается.
+4. **Releases → Draft a new release → Choose a tag** → `<тег>.MU.r1` →
+   *Create new tag*, Target `master` → **Publish release**. Это запускает
+   *Build and Release*, бинарники прикрепятся к релизу сами.
+
+Если workflow давно не запускался, GitHub мог отключить расписание (60 дней
+без активности) — включается кнопкой на странице workflow.
+
+Вручную, в терминале или в Codespace (нужно при конфликтах):
 
 ```sh
 fork/rebase-onto.sh              # на самый свежий тег MatriX.*
