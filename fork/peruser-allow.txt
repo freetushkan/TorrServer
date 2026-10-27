@@ -1,0 +1,9 @@
+# Handler call sites that intentionally bypass the per-user wrappers.
+# Format: "<file>: <code line, leading whitespace trimmed>" — matched exactly,
+# so an upstream change to the line makes check-peruser.sh ask again.
+
+# re-activating a torrent that already exists; ownership is not changed by
+# unauthenticated links (?user= must not grant ownership)
+server/web/api/stream.go: tor, err = torr.AddTorrent(spec, title, poster, data, category)
+# subtitles of an existing torrent
+server/web/api/subs.go: tor, err = torr.AddTorrent(spec, tor.Title, tor.Poster, tor.Data, tor.Category)

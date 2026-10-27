@@ -1,0 +1,108 @@
+# Fork only: try to move the fork commits onto every new upstream release tag.
+# Never touches master. On success pushes branch sync/<tag> and opens an issue
+# with the commands to publish it; on conflicts opens an issue listing them.
+name: Fork upstream sync
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Upstream tag to rebase onto (default: newest MatriX.*)"
+        required: false
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: fork-upstream-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-22.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      NODE_OPTIONS: --openssl-legacy-provider
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Find tags
+        id: tags
+        run: |
+          git remote add upstream https://github.com/YouROK/TorrServer.git
+          git fetch --quiet --no-tags upstream '+refs/tags/MatriX.*:refs/tags/MatriX.*'
+          NEW='${{ inputs.tag }}'
+          [ -n "$NEW" ] || NEW=$(git tag -l 'MatriX.*' | grep -v -- '.MU.' | sort -V | tail -1)
+          OLD=$(git describe --tags --abbrev=0 --match 'MatriX.*' --exclude '*.MU.*' HEAD)
+          echo "old=$OLD new=$NEW"
+          echo "old=$OLD" >> "$GITHUB_OUTPUT"
+          echo "new=$NEW" >> "$GITHUB_OUTPUT"
+          if [ "$(git rev-parse "$OLD^{commit}")" = "$(git rev-parse "$NEW^{commit}")" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          elif gh issue list --state all --search "in:title \"Upstream $NEW\"" --json number --jq 'length' | grep -qv '^0$'; then
+            echo "already handled $NEW"; echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-go@v7
+        if: steps.tags.outputs.skip != 'true'
+        with:
+          go-version-file: server/go.mod
+          cache: true
+
+      - name: Rebase and verify
+        id: rebase
+        if: steps.tags.outputs.skip != 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          set +e
+          bash fork/rebase-onto.sh '${{ steps.tags.outputs.new }}' 2>&1 | tee rebase.log
+          echo "code=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v7
+        if: steps.rebase.outputs.code == '0'
+        with:
+          node-version: 20
+
+      - name: Build web UI
+        id: web
+        if: steps.rebase.outputs.code == '0'
+        run: |
+          cd web && yarn install --frozen-lockfile && CI=false yarn build
+
+      - name: Report
+        if: steps.tags.outputs.skip != 'true' && always()
+        run: |
+          NEW='${{ steps.tags.outputs.new }}'
+          OLD='${{ steps.tags.outputs.old }}'
+          if [ '${{ steps.rebase.outputs.code }}' = '0' ] && [ '${{ steps.web.outcome }}' = 'success' ]; then
+            git push --force origin "sync/$NEW"
+            {
+              echo "The fork commits rebased cleanly from \`$OLD\` onto \`$NEW\`;"
+              echo "build, fork tests, hook check and web build passed."
+              echo
+              echo '```sh'
+              echo "git fetch origin sync/$NEW"
+              echo "git push --force-with-lease origin origin/sync/$NEW:master"
+              echo "git tag $NEW.MU.r1 origin/sync/$NEW && git push origin $NEW.MU.r1"
+              echo '```'
+            } > body.md
+            gh issue create --title "Upstream $NEW: ready" --body-file body.md
+          else
+            {
+              echo "Automatic rebase from \`$OLD\` onto \`$NEW\` needs a hand."
+              echo
+              echo "Locally: \`fork/rebase-onto.sh $NEW\`, resolve, \`fork/rebase-onto.sh --verify\`."
+              echo
+              echo '```'
+              tail -n 60 rebase.log 2>/dev/null || echo "(no log)"
+              echo '```'
+            } > body.md
+            gh issue create --title "Upstream $NEW: needs attention" --body-file body.md
+          fi
