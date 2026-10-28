@@ -185,7 +185,6 @@ func stream(c *gin.Context) {
 	// preload torrent
 	if preload {
 		torr.Preload(tor, index)
-		rememberPreloadUser(tor.Hash().HexString(), user) // fork: per-user data
 	}
 	// return stat if query
 	if stat {

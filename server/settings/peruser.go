@@ -9,7 +9,7 @@ package settings
 // Storage layout (compatible with the previous implementation):
 //   - "Viewed"       key "<user>:<hash>" — per-user viewed marks; plain "<hash>" is shared
 //   - "LastUser"     key "<hash>"        — last user that listed viewed / preloaded the torrent
-//   - "TorrentUsers" key "<hash>"        — JSON []string of accounts that own the torrent
+//   - "TorrentUsers" key "<hash>"        — {"users":[...]} accounts that own the torrent
 //   - "PerUser"      key "owners_migrated" — marker of the one-time import of the old
 //     TorrentDB.users field into "TorrentUsers"
 
@@ -22,6 +22,9 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
+
+	bolt "go.etcd.io/bbolt"
 
 	"server/log"
 )
@@ -262,6 +265,14 @@ func GetLastUser(hash, access string) string {
 
 // ---------------------------------------------------------------------------
 // Torrent owners
+//
+// Values are JSON objects, not arrays: buckets without a route of their own go
+// to the default DB, which is the JSON one when settings are stored in JSON,
+// and JsonDB only stores objects.
+
+type ownersRecord struct {
+	Users []string `json:"users"`
+}
 
 // GetTorrentOwners returns the stored owners of hash (may contain deleted accounts).
 func GetTorrentOwners(hash string) []string {
@@ -269,7 +280,11 @@ func GetTorrentOwners(hash string) []string {
 	if len(buf) == 0 {
 		return nil
 	}
-	var users []string
+	var rec ownersRecord
+	if err := json.Unmarshal(buf, &rec); err == nil {
+		return rec.Users
+	}
+	var users []string // written by early builds
 	if err := json.Unmarshal(buf, &users); err != nil {
 		log.TLogln("Error get torrent users:", err)
 		return nil
@@ -288,7 +303,7 @@ func SetTorrentOwners(hash string, users []string) {
 	if slices.Equal(GetTorrentOwners(hash), users) {
 		return
 	}
-	buf, err := json.Marshal(users)
+	buf, err := json.Marshal(ownersRecord{Users: users})
 	if err != nil {
 		log.TLogln("Error set torrent users:", err)
 		return
@@ -300,6 +315,55 @@ func RemTorrentOwners(hash string) {
 	if len(tdb.Get(torrentUsersBucket, hash)) != 0 {
 		tdb.Rem(torrentUsersBucket, hash)
 	}
+}
+
+// legacyOwners extracts TorrentDB.users values from a "Torrents" record.
+func legacyOwners(buf []byte) []string {
+	var old struct {
+		Users []string `json:"users"`
+	}
+	if json.Unmarshal(buf, &old) != nil {
+		return nil
+	}
+	return old.Users
+}
+
+// PerUserImportFile is a copy of config.db from a build that kept owners in
+// TorrentDB.users. If it is present at startup, owners are imported from it
+// for torrents that have none, and the file is renamed to *.imported.
+const PerUserImportFile = "peruser-import.db"
+
+func importOwnersFromFile(saved map[string]bool) int {
+	path := filepath.Join(Path, PerUserImportFile)
+	if _, err := os.Stat(path); err != nil {
+		return 0
+	}
+	db, err := bolt.Open(path, 0o600, &bolt.Options{ReadOnly: true, Timeout: 5 * time.Second})
+	if err != nil {
+		log.TLogln("Per-user data: cannot open", path, err)
+		return 0
+	}
+	imported := 0
+	_ = db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("Torrents"))
+		if b == nil {
+			return nil
+		}
+		return b.ForEach(func(k, v []byte) error {
+			hash := string(k)
+			if users := legacyOwners(v); saved[hash] && len(users) != 0 && len(GetTorrentOwners(hash)) == 0 {
+				SetTorrentOwners(hash, users)
+				imported++
+			}
+			return nil
+		})
+	})
+	db.Close()
+	if err := os.Rename(path, path+".imported"); err != nil {
+		log.TLogln("Per-user data: cannot rename", path, err)
+	}
+	log.TLogln("Per-user data: imported owners of", imported, "torrents from", PerUserImportFile)
+	return imported
 }
 
 // PerUserStartup must run once after InitSets and before anything rewrites the
@@ -317,21 +381,18 @@ func PerUserStartup() {
 		if migrated {
 			continue
 		}
-		var old struct {
-			Users []string `json:"users"`
-		}
-		if json.Unmarshal(tdb.Get("Torrents", key), &old) == nil && len(old.Users) != 0 &&
-			len(GetTorrentOwners(key)) == 0 {
-			SetTorrentOwners(key, old.Users)
+		if users := legacyOwners(tdb.Get("Torrents", key)); len(users) != 0 && len(GetTorrentOwners(key)) == 0 {
+			SetTorrentOwners(key, users)
 			imported++
 		}
 	}
 	if !migrated {
-		tdb.Set(perUserBucket, "owners_migrated", []byte("1"))
+		tdb.Set(perUserBucket, "owners_migrated", []byte(`{"done":true}`))
 		if imported > 0 {
 			log.TLogln("Per-user data: imported owners of", imported, "torrents")
 		}
 	}
+	importOwnersFromFile(saved)
 	for _, key := range tdb.List(torrentUsersBucket) {
 		if !saved[key] {
 			tdb.Rem(torrentUsersBucket, key)

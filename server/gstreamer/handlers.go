@@ -56,6 +56,7 @@ func (s *Service) heartbeat(c *gin.Context) {
 
 func (s *Service) probe(c *gin.Context) {
 	noCache(c)
+	rememberRequestUser(c) // fork: per-user data
 
 	hash := c.Param("hash")
 	fileID := firstNonEmpty(c.Query("index"), c.Query("id"), c.Query("fileID"))
@@ -76,6 +77,7 @@ func (s *Service) probe(c *gin.Context) {
 
 func (s *Service) master(c *gin.Context) {
 	noCache(c)
+	rememberRequestUser(c) // fork: per-user data
 
 	hash := c.Param("hash")
 	fileID := firstNonEmpty(c.Query("index"), c.Query("id"), c.Query("fileID"))

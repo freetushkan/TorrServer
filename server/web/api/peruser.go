@@ -6,6 +6,7 @@ package api
 import (
 	"encoding/json"
 	"net/url"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -17,11 +18,6 @@ const (
 	lastPreload = sets.LastUserPreloadAccess
 )
 
-// rememberPreloadUser lets later unauthenticated links of hash act for user.
-func rememberPreloadUser(hash, user string) {
-	sets.SetLastUser(hash, user, lastPreload)
-}
-
 // currentUser is the authenticated (HTTP Basic) account of the request, or "".
 func currentUser(c *gin.Context) string {
 	user, _ := c.Get(gin.AuthUserKey)
@@ -30,12 +26,21 @@ func currentUser(c *gin.Context) string {
 }
 
 // requestUser resolves the account a request acts for and attaches it to the
-// request context (torr.Stream reads it from there). Unauthenticated
-// play/playlist links carry it in ?user=, falling back to the last account
-// that used the torrent through lastAccess ("" disables the fallback).
+// request context (torr.Stream reads it from there).
+//
+// An authenticated request (stream, play, viewed, ffprobe…) is remembered as
+// the last user of the torrent. Requests without credentials act for ?user=
+// or, failing that, for that last user (lastAccess "" disables the fallback).
+// They are common: besides TorrServer's own loopback reads (preload/ffprobe,
+// GStreamer), FFmpeg-based players (mpv, VLC) keep user:pass@ from the URL
+// but only send it after a 401, and a known torrent is streamed without one.
 func requestUser(c *gin.Context, hash, lastAccess string) string {
+	hash = strings.ToLower(hash)
 	user := currentUser(c)
-	if user == "" && sets.PerUserEnabled() {
+	if user != "" {
+		sets.SetLastUser(hash, user, lastPreload)
+		sets.SetLastUser(hash, user, lastViewed)
+	} else if sets.PerUserEnabled() {
 		user = c.Query("user")
 		if user == "" && lastAccess != "" {
 			user = sets.GetLastUser(hash, lastAccess)

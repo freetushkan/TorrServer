@@ -40,6 +40,7 @@ func viewed(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
+	requestUser(c, req.Hash, "") // fork: per-user data
 
 	switch req.Action {
 	case "set":
@@ -77,6 +78,5 @@ func remViewed(req viewedReqJS, c *gin.Context) {
 
 func listViewed(req viewedReqJS, c *gin.Context) {
 	list := sets.ListViewedForUser(req.Hash, currentUser(c)) // fork: per-user data
-	sets.SetLastUser(req.Hash, currentUser(c), lastViewed)   // fork: per-user data
 	c.JSON(200, list)
 }

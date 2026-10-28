@@ -15,11 +15,12 @@ fail=0
 red() { printf '\033[31m%s\033[0m\n' "$*"; }
 
 echo "== 1. hooks present"
-# file|fixed string that must occur in it
-while IFS='|' read -r file needle; do
+# file|fixed string that must occur in it[|how many times, default 1+]
+while IFS='|' read -r file needle want; do
   [[ -z "$file" || "$file" == \#* ]] && continue
-  if ! grep -qF -- "$needle" "$file" 2>/dev/null; then
-    red "MISSING  $file: $needle"; fail=1
+  have=$(grep -cF -- "$needle" "$file" 2>/dev/null)
+  if [ "${have:-0}" -lt "${want:-1}" ]; then
+    red "MISSING  $file: $needle (found ${have:-0}, want ${want:-1})"; fail=1
   fi
 done <<'EOF'
 server/server.go|settings.PerUserStartup()
@@ -35,8 +36,9 @@ server/web/api/torrents.go|torr.RemTorrentForUser(hash, currentUser(c))
 server/web/api/upload.go|torr.AddTorrentForUser(currentUser(c)
 server/web/api/stream.go|requestUser(c, spec.InfoHash.HexString(), "")
 server/web/api/stream.go|requestUser(c, spec.InfoHash.HexString(), lastPreload)
-server/web/api/stream.go|rememberPreloadUser(
-server/web/api/play.go|requestUser(c, "", "")
+server/web/api/play.go|requestUser(c, spec.InfoHash.HexString(), lastPreload)
+server/web/api/ffprobe.go|requestUser(c, hash, "")
+server/gstreamer/handlers.go|rememberRequestUser(c)|2
 server/web/api/m3u.go|torr.ListTorrentForUser(user)
 server/web/api/m3u.go|requestUser(c, tor.Hash().HexString(), lastViewed)
 server/web/api/m3u.go|userParam(user) + "&index="
@@ -44,6 +46,7 @@ server/web/api/m3u.go|sets.ListViewedForUser(tor.Hash, user)
 server/web/api/viewed.go|sets.SetViewedForUser(
 server/web/api/viewed.go|sets.RemViewedForUser(
 server/web/api/viewed.go|sets.ListViewedForUser(
+server/web/api/viewed.go|requestUser(c, req.Hash, "")
 server/web/api/settings.go|settingsForUser(c)
 web/src/components/Settings/SecondarySettingsComponent.jsx|<PerUserSettings
 EOF

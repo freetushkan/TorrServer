@@ -57,6 +57,7 @@ All logic lives in fork-only files, which never conflict:
 | `server/settings/peruser.go` | flag/setting, account list, viewed keys, LastUser, owner storage, startup migration |
 | `server/torr/peruser.go` | `AddTorrentForUser`, `RemTorrentForUser`, `ListTorrentForUser` |
 | `server/web/api/peruser.go` | `currentUser`, `requestUser`, `userParam`, `settingsForUser` |
+| `server/gstreamer/peruser.go` | records the user who starts a GStreamer probe/transcode |
 | `web/src/components/Settings/PerUserSettings.jsx` | settings switch and its translations |
 
 Upstream files only carry one-line hooks marked `fork: per-user data`. On a
@@ -90,6 +91,15 @@ Storage (bbolt/json through the shared `tdb`):
 | `LastUser` | hash | last account that listed viewed marks / preloaded |
 | `PerUser` | `owners_migrated` | the legacy `TorrentDB.users` field has been imported |
 
+Values are JSON objects: buckets without a route of their own are stored in
+the default DB, which is JSON when settings are kept in JSON, and the JSON DB
+only stores objects.
+
+To recover owners from a backup of a `config.db` that still has the legacy
+`TorrentDB.users` field, put it next to `config.db` as `peruser-import.db` and
+restart: owners are imported for torrents that have none, and the file is
+renamed to `peruser-import.db.imported`.
+
 Rules:
 
 - a torrent without owners is shared and visible to every account;
@@ -102,9 +112,16 @@ Rules:
   gone becomes shared;
 - viewed marks are per user; shared marks made before the mode was enabled are
   copied to a user on first access;
-- playlists carry `&user=<login>` so unauthenticated players mark progress for
-  the right user, falling back to `LastUser`. `?user=` only affects viewed
-  marks; ownership is changed by authenticated requests only.
+- a request without credentials acts for `?user=` or, failing that, for the
+  last user whose authenticated request touched the torrent (stream, play,
+  viewed, ffprobe, GStreamer; stored in `LastUser`). Such requests are common:
+  TorrServer's own loopback reads (preload/ffprobe, GStreamer) carry no
+  credentials, and FFmpeg-based players (mpv, VLC) keep `user:pass@` from the
+  URL but send it only after a 401, which a known torrent never triggers.
+  With FFmpeg, `auth_type=basic` (mpv: `stream-lavf-o=auth_type=basic`) sends
+  the credentials up front and makes the attribution exact.
+  Playlists carry `&user=<login>`. `?user=` only affects viewed marks;
+  ownership is changed by authenticated requests only.
 
 Not isolated (see all accounts' data): DLNA, WebDAV/FUSE (`torrfs`), the
 Telegram bot, MCP, and torrent `get`/`set` by hash.

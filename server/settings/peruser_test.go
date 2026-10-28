@@ -1,11 +1,14 @@
 package settings
 
 import (
+	"encoding/json"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"sort"
 	"testing"
+
+	bolt "go.etcd.io/bbolt"
 )
 
 type memDB map[string]map[string][]byte
@@ -16,6 +19,12 @@ func (m memDB) Get(x, n string) []byte {
 }
 
 func (m memDB) Set(x, n string, v []byte) {
+	// mimic JsonDB, the default route when settings are stored in JSON:
+	// it silently drops anything that is not a JSON object
+	var obj map[string]any
+	if json.Unmarshal(v, &obj) != nil {
+		return
+	}
 	if m[x] == nil {
 		m[x] = map[string][]byte{}
 	}
@@ -149,7 +158,7 @@ func TestStartupImportsOldOwnersOnce(t *testing.T) {
 	h2 := "fedcba9876543210fedcba9876543210fedcba98"
 	db.Set("Torrents", h1, []byte(`{"title":"a","users":["alice","bob"]}`))
 	db.Set("Torrents", h2, []byte(`{"title":"b"}`))
-	db.Set(torrentUsersBucket, "deadbeef", []byte(`["bob"]`)) // stale record
+	db.Set(torrentUsersBucket, "deadbeef", []byte(`{"users":["bob"]}`)) // stale record
 
 	PerUserStartup()
 	if got := GetTorrentOwners(h1); len(got) != 2 {
@@ -167,5 +176,55 @@ func TestStartupImportsOldOwnersOnce(t *testing.T) {
 	PerUserStartup()
 	if got := GetTorrentOwners(h1); len(got) != 1 || got[0] != "bob" {
 		t.Fatalf("owners re-imported: %v", got)
+	}
+}
+
+func TestOwnersReadLegacyArray(t *testing.T) {
+	db := setupPerUser(t, true)
+	db[torrentUsersBucket] = map[string][]byte{h1: []byte(`["alice"]`)} // bypasses the object check
+	if got := GetTorrentOwners(h1); len(got) != 1 || got[0] != "alice" {
+		t.Fatalf("legacy owners = %v", got)
+	}
+	SetTorrentOwners(h1, []string{"alice", "bob"})
+	if got := GetTorrentOwners(h1); len(got) != 2 {
+		t.Fatalf("owners after rewrite = %v (not persisted?)", got)
+	}
+}
+
+func TestImportOwnersFromFile(t *testing.T) {
+	db := setupPerUser(t, true)
+	h2 := "fedcba9876543210fedcba9876543210fedcba98"
+	// current DB: torrents already rewritten by upstream, users field gone
+	db.Set("Torrents", h1, []byte(`{"title":"a"}`))
+	db.Set("Torrents", h2, []byte(`{"title":"b"}`))
+	db.Set(perUserBucket, "owners_migrated", []byte(`{"done":true}`))
+	SetTorrentOwners(h2, []string{"bob"}) // already has owners: must stay
+
+	// backup of the old config.db
+	old, err := bolt.Open(filepath.Join(Path, PerUserImportFile), 0o600, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = old.Update(func(tx *bolt.Tx) error {
+		b, _ := tx.CreateBucket([]byte("Torrents"))
+		_ = b.Put([]byte(h1), []byte(`{"title":"a","users":["alice"]}`))
+		_ = b.Put([]byte(h2), []byte(`{"title":"b","users":["alice"]}`))
+		_ = b.Put([]byte("0000000000000000000000000000000000000000"), []byte(`{"users":["alice"]}`)) // deleted since
+		return nil
+	})
+	old.Close()
+
+	PerUserStartup()
+	if got := GetTorrentOwners(h1); len(got) != 1 || got[0] != "alice" {
+		t.Fatalf("h1 owners = %v", got)
+	}
+	if got := GetTorrentOwners(h2); len(got) != 1 || got[0] != "bob" {
+		t.Fatalf("h2 owners overwritten: %v", got)
+	}
+	if GetTorrentOwners("0000000000000000000000000000000000000000") != nil {
+		t.Fatal("imported owners of a torrent that no longer exists")
+	}
+	if _, err := os.Stat(filepath.Join(Path, PerUserImportFile+".imported")); err != nil {
+		t.Fatal("import file not renamed")
 	}
 }
