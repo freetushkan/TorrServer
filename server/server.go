@@ -27,6 +27,7 @@ func Start() error {
 	if err := settings.InitSets(settings.Args.RDB, settings.Args.SearchWA); err != nil {
 		return err
 	}
+	settings.PerUserStartup() // fork: per-user data separation
 	// https checks
 	if settings.Args.Ssl {
 		// set settings ssl enabled

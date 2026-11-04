@@ -58,6 +58,7 @@ func ffp(c *gin.Context) {
 		return
 	}
 
+	requestUser(c, hash, "") // fork: per-user data
 	link := sets.LoopbackBaseURL() + "/play/" + hash + "/" + indexStr
 
 	data, err := ffprobe.ProbeUrl(link)

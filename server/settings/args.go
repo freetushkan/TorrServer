@@ -28,6 +28,7 @@ type ExecArgs struct {
 	ForceHTTPS  bool
 	HTTPMedia   bool
 	HTTPSOnly   bool
+	PerUserData bool // fork: per-user data separation
 }
 
 var Args *ExecArgs
