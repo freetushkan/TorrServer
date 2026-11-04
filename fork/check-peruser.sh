@@ -51,6 +51,7 @@ server/web/api/settings.go|settingsForUser(c)
 web/src/components/Settings/SecondarySettingsComponent.jsx|<ForkSettings
 web/src/components/Settings/ForkSettings.jsx|<PerUserSettings
 .github/workflows/ts_release.yml|workflow_dispatch: # fork:
+.github/workflows/ts_release.yml|# fork: release without the iOS framework
 EOF
 [ $fail = 0 ] && echo "ok"
 
