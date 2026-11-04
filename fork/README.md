@@ -53,6 +53,11 @@ the next attempt. If replaying the fork commits one by one conflicts, it
 retries with them squashed into one commit: an intermediate commit can
 conflict with upstream even when the final state does not.
 
+*Build and Release* publishes the release when the Linux, Windows (GStreamer)
+and AppImage builds succeed, even if the iOS build fails: macOS runners are
+sometimes not allocated at all ("The job was not acquired by Runner"). Such a
+release has no iOS framework; **Re-run failed jobs** on that run adds it.
+
 Do not push upstream tags to the fork (`git push --tags`): `ts_release.yml`
 builds a release for every pushed tag.
 
