@@ -40,6 +40,7 @@ func viewed(c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
+	requestUser(c, req.Hash, "") // fork: per-user data
 
 	switch req.Action {
 	case "set":
@@ -62,7 +63,7 @@ func setViewed(req viewedReqJS, c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, errors.New("hash is required"))
 		return
 	}
-	sets.SetViewed(&req.Viewed)
+	sets.SetViewedForUser(&req.Viewed, currentUser(c)) // fork: per-user data
 	c.Status(200)
 }
 
@@ -71,11 +72,11 @@ func remViewed(req viewedReqJS, c *gin.Context) {
 		c.AbortWithError(http.StatusBadRequest, errors.New("hash is required"))
 		return
 	}
-	sets.RemViewed(&req.Viewed)
+	sets.RemViewedForUser(&req.Viewed, currentUser(c)) // fork: per-user data
 	c.Status(200)
 }
 
 func listViewed(req viewedReqJS, c *gin.Context) {
-	list := sets.ListViewed(req.Hash)
+	list := sets.ListViewedForUser(req.Hash, currentUser(c)) // fork: per-user data
 	c.JSON(200, list)
 }
