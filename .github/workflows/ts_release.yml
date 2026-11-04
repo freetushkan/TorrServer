@@ -293,6 +293,8 @@ jobs:
       - build-gst
       - build-appimage
       - build-ios
+    # fork: release without the iOS framework when macOS runners are unavailable
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.build-gst.result == 'success' && needs.build-appimage.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
